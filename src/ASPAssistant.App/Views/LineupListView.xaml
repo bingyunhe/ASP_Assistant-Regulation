@@ -48,10 +48,9 @@
             <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Padding" Value="0" />
-            <Setter Property="Width" Value="54" />
             <Setter Property="Height" Value="24" />
             <Setter Property="FontSize" Value="11" />
-            <Setter Property="Margin" Value="0,0,6,0" />
+            <Setter Property="Margin" Value="0,0,4,0" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -124,6 +123,8 @@
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
 
                                     <!-- Header: Name + Badge -->
@@ -146,8 +147,56 @@
                                                    Margin="0,0,8,0" />
                                     </DockPanel>
 
+                                    <!-- 开局策略（没选就整行收起） -->
+                                    <DockPanel Grid.Row="1" Margin="0,5,0,0">
+                                        <DockPanel.Style>
+                                            <Style TargetType="DockPanel">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding OpeningStrategyText}" Value="">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding OpeningStrategyText}" Value="{x:Null}">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </DockPanel.Style>
+                                        <Border Background="{DynamicResource AccentTintBrush}" CornerRadius="3"
+                                                Padding="4,0,4,1" VerticalAlignment="Center" Margin="0,0,5,0">
+                                            <TextBlock Text="开局" FontSize="9"
+                                                       Foreground="{DynamicResource AccentBrush}" />
+                                        </Border>
+                                        <TextBlock Text="{Binding OpeningStrategyName}"
+                                                   ToolTip="{Binding OpeningStrategyName}"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   FontSize="10" TextTrimming="CharacterEllipsis" />
+                                    </DockPanel>
+
+                                    <!-- 升本计划（没设置就整行收起） -->
+                                    <TextBlock Grid.Row="2"
+                                               Text="{Binding UpgradePlanText, StringFormat=升本 {0}}"
+                                               ToolTip="{Binding UpgradePlanText, StringFormat=升本 {0}}"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               FontSize="10"
+                                               TextTrimming="CharacterEllipsis"
+                                               Margin="0,5,0,0">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding UpgradePlanText}" Value="">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding UpgradePlanText}" Value="{x:Null}">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+
                                     <!-- Body: Icons -->
-                                    <ItemsControl Grid.Row="1" ItemsSource="{Binding Slots}" Margin="0,10,0,8">
+                                    <ItemsControl Grid.Row="3" ItemsSource="{Binding Slots}" Margin="0,10,0,8">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
                                                 <WrapPanel />
@@ -168,8 +217,22 @@
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
 
-                                    <!-- Footer: Actions -->
-                                    <StackPanel Grid.Row="2" Orientation="Horizontal">
+                                    <!-- Footer: Actions（五等分，窄面板也不会挤出卡片） -->
+                                    <UniformGrid Grid.Row="4" Columns="5">
+                                        <Button Tag="{Binding Id}" Click="OnActivateLineup">
+                                            <Button.Style>
+                                                <Style TargetType="Button" BasedOn="{StaticResource LineupCardActionButton}">
+                                                    <Setter Property="Content" Value="使用" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsActive}" Value="True">
+                                                            <Setter Property="Content" Value="使用中" />
+                                                            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+                                                            <Setter Property="FontWeight" Value="Bold" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Button.Style>
+                                        </Button>
                                         <Button Content="编辑" Tag="{Binding Id}"
                                                 Style="{StaticResource LineupCardActionButton}"
                                                 Click="OnEditLineup" />
@@ -183,7 +246,7 @@
                                                 Style="{StaticResource LineupCardActionButton}"
                                                 Foreground="{DynamicResource DangerMutedBrush}"
                                                 Click="OnDeleteLineup" />
-                                    </StackPanel>
+                                    </UniformGrid>
                                 </Grid>
                             </Border>
                         </DataTemplate>

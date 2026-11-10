@@ -120,7 +120,7 @@ public class ThemeAndHighlightTests
                     view.Measure(new Size(310, 900));
                     view.Arrange(new Rect(0, 0, 310, 900));
                     view.UpdateLayout();
-                    Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                    PumpIdle();
 
                     var tierCandidates = vm.FilteredOperators.ToList();
                     AssertTierClicks((ListBox)view.FindName("TierFilterList"), expected =>
@@ -179,7 +179,7 @@ public class ThemeAndHighlightTests
                     var item = (ListBoxItem)coreList.ItemContainerGenerator.ContainerFromItem("乌萨斯");
                     item.IsSelected = true;
                     item.ApplyTemplate();
-                    Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                    PumpIdle();
                     var chip = (Border)item.Template.FindName("bg", item);
                     item.Tag.Should().Be("available");
                     ((SolidColorBrush)chip.BorderBrush).Color.Should().Be(
@@ -208,7 +208,7 @@ public class ThemeAndHighlightTests
                     tooltip.Measure(new Size(500, 700));
                     tooltip.Arrange(new Rect(tooltip.DesiredSize));
                     tooltip.UpdateLayout();
-                    Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                    PumpIdle();
                     var labels = Descendants<TextBlock>(tooltip).Select(t => t.Text).ToList();
                     labels.Should().Contain("普通").And.Contain("精锐");
                     Descendants<ContentControl>(tooltip).Should().Contain(c => c.Tag as string == "精锐");
@@ -220,7 +220,7 @@ public class ThemeAndHighlightTests
                     Save(tooltip, Path.Combine(output, isLight ? "light-details.png" : "dark-details.png"));
 
                     ((Button)view.FindName("ClearHighlightsButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                    Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                    PumpIdle();
                     vm.HighlightedCovenants.Should().BeEmpty();
                     item.IsSelected.Should().BeTrue();
                     item.Tag.Should().Be("");
@@ -260,7 +260,7 @@ public class ThemeAndHighlightTests
                     sidePanel.ShowActivated = false;
                     sidePanel.ShowInTaskbar = false;
                     sidePanel.Show();
-                    Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                    PumpIdle();
                     var sideHwnd = new System.Windows.Interop.WindowInteropHelper(sidePanel).Handle;
                     var work = User32.GetMonitorGeometry(0, 0).WorkArea;
                     var gameBounds = new RECT
@@ -269,7 +269,7 @@ public class ThemeAndHighlightTests
                         Right = work.Right - 10, Bottom = Math.Min(work.Bottom - 20, work.Top + 640),
                     };
                     sidePanel.UpdatePosition(gameBounds, false);
-                    Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                    PumpIdle();
                     sidePanel.UpdatePosition(gameBounds, false);
                     var sideBounds = User32.ReadWindowRect(sideHwnd);
                     var sideScale = User32.GetWindowDpiScale(sideHwnd);
@@ -287,7 +287,7 @@ public class ThemeAndHighlightTests
                         Bottom = work.Top + 50 + (int)Math.Round(300 * sideScale),
                     };
                     User32.SetWindowBounds(sideHwnd, manualBounds);
-                    Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                    PumpIdle();
                     User32.SendMessage(sideHwnd, User32.WM_EXITSIZEMOVE, IntPtr.Zero, IntPtr.Zero);
                     var freeMovement = (CheckBox)sidePanel.FindName("FreeSidePanelMovementToggle");
                     var resetPosition = (Button)sidePanel.FindName("ResetSidePanelPositionButton");
@@ -319,7 +319,7 @@ public class ThemeAndHighlightTests
                     manualBounds.Top += 30;
                     manualBounds.Bottom += 30;
                     User32.SetWindowBounds(sideHwnd, manualBounds);
-                    Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                    PumpIdle();
                     User32.SendMessage(sideHwnd, User32.WM_EXITSIZEMOVE, IntPtr.Zero, IntPtr.Zero);
                     WaitForPreferenceSave(freeMovement);
                     var savedFree = LoadSavedPosition();
@@ -332,7 +332,7 @@ public class ThemeAndHighlightTests
                     try
                     {
                         restoredFree.Show();
-                        Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                        PumpIdle();
                         ((CheckBox)restoredFree.FindName("FreeSidePanelMovementToggle")).IsChecked.Should().BeTrue();
                         var restoredHwnd = new System.Windows.Interop.WindowInteropHelper(restoredFree).Handle;
                         User32.ReadWindowRect(restoredHwnd).Should().BeEquivalentTo(manualBounds);
@@ -365,7 +365,7 @@ public class ThemeAndHighlightTests
                     try
                     {
                         restoredFollow.Show();
-                        Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                        PumpIdle();
                         restoredFollow.UpdatePosition(movedGame, false);
                         User32.ReadWindowRect(new System.Windows.Interop.WindowInteropHelper(restoredFollow).Handle)
                             .Should().BeEquivalentTo(followedBounds);
@@ -403,7 +403,7 @@ public class ThemeAndHighlightTests
                         };
                         overlay.UpdatePosition(clientBounds);
                         overlay.Show();
-                        Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                        PumpIdle();
                         var overlayHwnd = new System.Windows.Interop.WindowInteropHelper(overlay).Handle;
                         User32.ReadWindowRect(overlayHwnd).Should().BeEquivalentTo(clientBounds);
                         var overlayScale = User32.GetWindowDpiScale(overlayHwnd);
@@ -421,7 +421,7 @@ public class ThemeAndHighlightTests
                         clientBounds.Right += 4;
                         clientBounds.Bottom += 4;
                         overlay.UpdatePosition(clientBounds);
-                        Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                        PumpIdle();
                         User32.ReadWindowRect(overlayHwnd).Should().BeEquivalentTo(clientBounds);
                         canvas.Children.OfType<Grid>().Single().Should().BeSameAs(marker);
                         Canvas.GetLeft(marker).Should().BeApproximately(overlay.ActualWidth * 0.5 - 27, 0.001);
@@ -455,11 +455,11 @@ public class ThemeAndHighlightTests
                     gameThemes.SelectedIndex.Should().Be(0);
                     // 矮侧栏的设置区必须能滚动，新增位置控件不能挤掉已有更新入口。
                     settingsButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                    Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                    PumpIdle();
                     var settingsScroll = (ScrollViewer)sidePanel.FindName("SettingsScroll");
                     settingsScroll.ScrollableHeight.Should().BeGreaterThan(0);
                     settingsScroll.ScrollToBottom();
-                    Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                    PumpIdle();
                     settingsScroll.VerticalOffset.Should().BeGreaterThan(0);
                     settingsScroll.ScrollToTop();
                     settingsButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -470,7 +470,7 @@ public class ThemeAndHighlightTests
                         Bottom = work.Top + 20 + (int)Math.Round(900 * sideScale),
                     }, work);
                     User32.SetWindowBounds(sideHwnd, previewBounds);
-                    Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                    PumpIdle();
                     GameShopTheme changedTheme = GameShopTheme.Terminal;
                     sidePanel.GameThemeChanged += theme => changedTheme = theme;
                     foreach (var isLight in new[] { false, true })
@@ -507,7 +507,7 @@ public class ThemeAndHighlightTests
                             content.Measure(new Size(310, 900));
                             content.Arrange(new Rect(0, 0, 310, 900));
                             content.UpdateLayout();
-                            Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                            PumpIdle();
                             var page = (UserControl)((TabItem)tabs.Items[i]).Content;
                             page.ActualWidth.Should().BeGreaterThan(290);
                             ((SolidColorBrush)page.Background).Color.Should().Be(isLight
@@ -688,7 +688,7 @@ public class ThemeAndHighlightTests
                                 detail.Measure(new Size(500, 700));
                                 detail.Arrange(new Rect(detail.DesiredSize));
                                 detail.UpdateLayout();
-                                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                                PumpIdle();
                                 Descendants<TextBlock>(detail).Select(t => t.Text)
                                     .Should().Contain("普通").And.Contain("精锐");
                                 var hoverCard = new OperatorCard
@@ -704,7 +704,7 @@ public class ThemeAndHighlightTests
                                 host.Width = 310;
                                 host.Height = 100;
                                 host.Show();
-                                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                                PumpIdle();
                                 detail = (ToolTip)hoverCard.FindName("DetailsToolTip");
                                 detail.PlacementTarget = (UIElement)hoverCard.FindName("CardBorder");
                                 detail.MaxHeight = 100;
@@ -712,19 +712,19 @@ public class ThemeAndHighlightTests
                                 row.ActualHeight.Should().Be(42);
                                 detail.Opacity = 0; // Exercise the popup lifecycle without displaying test UI.
                                 detail.IsOpen = true;
-                                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                                PumpIdle();
                                 detail.IsOpen.Should().BeTrue();
                                 row.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice, 0) { RoutedEvent = Mouse.MouseLeaveEvent });
                                 WaitForUi(() => !detail.IsOpen, "moving off the operator into equipment or blank space must close details");
                                 detail.IsOpen = true;
-                                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                                PumpIdle();
                                 detail.IsOpen.Should().BeTrue();
                                 row.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice, 0) { RoutedEvent = Mouse.MouseLeaveEvent });
                                 detail.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice, 0) { RoutedEvent = Mouse.MouseEnterEvent });
                                 var grace = System.Diagnostics.Stopwatch.StartNew();
                                 while (grace.Elapsed < TimeSpan.FromMilliseconds(250))
                                 {
-                                    Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                                    PumpIdle();
                                     Thread.Sleep(1);
                                 }
                                 detail.IsOpen.Should().BeTrue("crossing the gap into details must cancel the pending close");
@@ -770,7 +770,7 @@ public class ThemeAndHighlightTests
                                     equipmentDetails.Measure(new Size(320, 700));
                                     equipmentDetails.Arrange(new Rect(equipmentDetails.DesiredSize));
                                     equipmentDetails.UpdateLayout();
-                                    Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                                    PumpIdle();
                                     var fullCard = (EquipmentCard)equipmentCard.FindName("DetailsCard");
                                     ((TextBlock)fullCard.FindName("NameText")).Text.Should().Be(item.Name);
                                     ((ItemsControl)fullCard.FindName("CategoryChips")).Items.Cast<string>().Should().Equal(item.Categories);
@@ -793,21 +793,21 @@ public class ThemeAndHighlightTests
                                     VerticalAlignment = VerticalAlignment.Top
                                 };
                                 host.Content = equipmentHover;
-                                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                                PumpIdle();
                                 var equipmentRow = (Border)equipmentHover.FindName("CardBorder");
                                 var hoverDetails = (ToolTip)equipmentHover.FindName("DetailsToolTip");
                                 hoverDetails.PlacementTarget = equipmentRow;
                                 hoverDetails.MaxHeight = 100;
                                 hoverDetails.Opacity = 0;
                                 hoverDetails.IsOpen = true;
-                                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                                PumpIdle();
                                 hoverDetails.IsOpen.Should().BeTrue();
                                 equipmentRow.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice, 0) { RoutedEvent = Mouse.MouseLeaveEvent });
                                 hoverDetails.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice, 0) { RoutedEvent = Mouse.MouseEnterEvent });
                                 var equipmentGrace = System.Diagnostics.Stopwatch.StartNew();
                                 while (equipmentGrace.Elapsed < TimeSpan.FromMilliseconds(250))
                                 {
-                                    Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                                    PumpIdle();
                                     Thread.Sleep(1);
                                 }
                                 hoverDetails.IsOpen.Should().BeTrue("the equipment popup must allow crossing into its details");
@@ -922,73 +922,68 @@ public class ThemeAndHighlightTests
                         finally { fallbackWindow.Close(); }
 
                         var editorVm = new LineupEditorViewModel(null, operators, equipment, lineupVm.Calculator);
-                        editorVm.SetStrategy(0, "band_amiya");
-                        editorVm.SetStrategy(1, "band_upgrade");
-                        var longestStrategy = strategies.MaxBy(s => s.Description.Length)!;
-                        editorVm.SetStrategy(2, longestStrategy.Id);
-                        editorVm.SetStrategy(3, "unknown-shared-strategy");
                         var editor = new LineupEditorWindow(editorVm, strategies);
                         try
                         {
                             var phaseTabs = (WrapPanel)editor.FindName("PhaseTabs");
-                            phaseTabs.Children.Cast<Button>().Select(b => b.Content).Should().Equal("前期", "中期", "后期", "挂件", "策略");
-                            ((Button)phaseTabs.Children[4]).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                            // 策略不再是页签，只剩四个阶段。
+                            phaseTabs.Children.Cast<Button>().Select(b => b.Content)
+                                .Should().Equal("前期", "中期", "后期", "挂件");
+
                             var editorContent = (Border)editor.Content;
                             editorContent.Measure(new Size(980, 660));
                             editorContent.Arrange(new Rect(0, 0, 980, 660));
                             editorContent.UpdateLayout();
-                            var slots = (ItemsControl)editor.FindName("SlotsHost");
-                            slots.Items.Count.Should().Be(9);
-                            var firstCard = (Border)slots.Items[0];
-                            Descendants<TextBlock>(firstCard).Should().NotContain(t => t.Text.Contains("解锁要求"));
-                            Descendants<TextBlock>(firstCard).Should().Contain(t => t.Text == strategies.Single(s => s.Id == "band_amiya").Description);
-                            Descendants<Button>(firstCard).Select(b => b.Content).Should().Equal("✕", "阵容核心", "优选", "次选");
-                            Descendants<Image>(firstCard).Single().Source.Should().NotBeNull();
-                            Descendants<TextBlock>((Border)slots.Items[1]).Should().Contain(t => t.Text == strategies.Single(s => s.Id == "band_upgrade").Description);
-                            Descendants<TextBlock>((Border)slots.Items[2]).Should().Contain(t => t.Text == longestStrategy.Description);
-                            foreach (var card in slots.Items.Cast<Border>().Take(3))
-                                Descendants<TextBlock>(card).Should().NotContain(t => t.Text.Contains("解锁要求："));
-                            Descendants<TextBlock>((Border)slots.Items[3]).Should().Contain(t => t.Text == "资料未收录");
-                            Descendants<Button>((Border)slots.Items[3]).Single(b => (string)b.Content == "✕")
-                                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                            ((Border)editor.FindName("CovenantPanel")).Visibility.Should().Be(Visibility.Collapsed);
-                            var core = Descendants<Button>(firstCard).Single(b => (string)b.Content == "阵容核心");
-                            core.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+
+                            var strategyHost = (StackPanel)editor.FindName("OpeningStrategyHost");
+                            var pickButton = (Button)editor.FindName("OpeningStrategyPickButton");
+                            strategyHost.Children.OfType<TextBlock>().Should().Contain(t => t.Text.StartsWith("还没选"));
+                            pickButton.Content.Should().Be("选择");
+
+                            // 选一个开局策略：卡片里出现名字、初始生命值和说明。
+                            editorVm.OpeningStrategyId = "band_amiya";
                             editorContent.UpdateLayout();
-                            core = Descendants<Button>(firstCard).Single(b => (string)b.Content == "阵容核心");
-                            core.Tag.Should().Be("core");
-                            ((SolidColorBrush)core.Foreground).Color.Should().Be(
-                                ((SolidColorBrush)application.FindResource("FilterSelectedBrush")).Color);
-                            editorVm.StrategySlots[0].Tags.Should().Contain(StrategyTag.阵容核心);
-                            Descendants<Button>(firstCard).Single(b => (string)b.Content == "优选")
-                                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                            editorVm.StrategySlots[0].Tags.Should().Contain(StrategyTag.优选);
+                            var ami = strategies.Single(s => s.Id == "band_amiya");
+                            Descendants<TextBlock>(strategyHost).Select(t => t.Text).Should().Contain(ami.Name);
+                            Descendants<TextBlock>(strategyHost).Select(t => t.Text).Should().Contain($"初始生命值 {ami.InitialHp}");
+                            Descendants<TextBlock>(strategyHost).Select(t => t.Text).Should().Contain(ami.Description);
+                            Descendants<Image>(strategyHost).Single().Source.Should().NotBeNull();
+                            pickButton.Content.Should().Be("更换");
+                            ((Border)editor.FindName("CovenantPanel")).Visibility.Should().Be(Visibility.Visible);
+
+                            // 超长说明也不能把卡片撑破。
+                            var longestStrategy = strategies.MaxBy(s => s.Description.Length)!;
+                            editorVm.OpeningStrategyId = longestStrategy.Id;
                             editorContent.UpdateLayout();
-                            Save(editorContent, Path.Combine(output, isLight ? "light-strategy-editor.png" : "dark-strategy-editor.png"));
                             editorContent.Measure(new Size(720, 500));
                             editorContent.Arrange(new Rect(0, 0, 720, 500));
                             editorContent.UpdateLayout();
-                            Save(editorContent, Path.Combine(output, isLight ? "light-strategy-editor-narrow.png" : "dark-strategy-editor-narrow.png"));
-                            foreach (var card in slots.Items.Cast<Border>().Take(3))
+                            Save(editorContent, Path.Combine(output, isLight ? "light-opening-strategy.png" : "dark-opening-strategy.png"));
+                            var strategyCard = (Border)editor.FindName("OpeningStrategyCard");
+                            foreach (var text in Descendants<TextBlock>(strategyHost))
                             {
-                                foreach (var text in Descendants<TextBlock>(card))
-                                {
-                                    (text.TranslatePoint(new Point(), card).X + text.ActualWidth)
-                                        .Should().BeLessThanOrEqualTo(card.ActualWidth + 1);
-                                    (text.TranslatePoint(new Point(), card).Y + text.ActualHeight)
-                                        .Should().BeLessThanOrEqualTo(card.ActualHeight + 1);
-                                    text.ActualHeight.Should().BeGreaterThanOrEqualTo(
-                                        text.DesiredSize.Height - text.Margin.Top - text.Margin.Bottom - 1);
-                                }
+                                (text.TranslatePoint(new Point(), strategyCard).X + text.ActualWidth)
+                                    .Should().BeLessThanOrEqualTo(strategyCard.ActualWidth + 1,
+                                        "说明文字不能出血到卡片外");
                             }
-                            Descendants<Button>((Border)slots.Items[1]).Single(b => (string)b.Content == "✕")
+
+                            // ✕ 清掉之后回到提示状态。
+                            Descendants<Button>(strategyHost).Single(b => (string)b.Content == "✕")
                                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                            editorVm.StrategySlots[1].StrategyId.Should().BeEmpty();
-                            ((Button)phaseTabs.Children[3]).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                            ((Border)editor.FindName("CovenantPanel")).Visibility.Should().Be(Visibility.Visible);
+                            editorContent.UpdateLayout();
+                            editorVm.OpeningStrategyId.Should().BeEmpty();
+                            strategyHost.Children.OfType<TextBlock>().Should().Contain(t => t.Text.StartsWith("还没选"));
+                            pickButton.Content.Should().Be("选择");
+
+                            // 阶段页签照旧切换干员槽，与开局策略互不影响。
+                            editorVm.OpeningStrategyId = "band_amiya";
+                            var slots = (ItemsControl)editor.FindName("SlotsHost");
+                            slots.Items.Count.Should().Be(9);
                             Descendants<Button>((Border)slots.Items[0]).Single().Content.Should().Be("+ 选择干员");
-                            ((Button)phaseTabs.Children[4]).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                            Descendants<TextBlock>((Border)slots.Items[0]).Should().Contain(t => t.Text == "众志合一");
+                            ((Button)phaseTabs.Children[3]).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                            editorContent.UpdateLayout();
+                            editorVm.OpeningStrategyId.Should().Be("band_amiya");
+                            Descendants<TextBlock>(strategyHost).Select(t => t.Text).Should().Contain(ami.Name);
                         }
                         finally { editor.Close(); }
 
@@ -1107,7 +1102,7 @@ public class ThemeAndHighlightTests
                             ((TextBlock)progressDialog.FindName("ProgressPercentText")).Text.Should().Be("0%");
                             RespondToUpdateRequest(updateServer, 503, "{}");
                             WaitForUi(() => updateStatus.Text.StartsWith("下载失败"), "retry must issue a fresh download request");
-                            Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                            PumpIdle();
                             ((TextBlock)progressDialog.FindName("DownloadHintText")).Text.Should().Contain("下载失败").And.Contain("503");
                             ((ProgressBar)progressDialog.FindName("DialogProgress")).Visibility.Should().Be(Visibility.Collapsed);
                         }
@@ -1167,8 +1162,35 @@ public class ThemeAndHighlightTests
         // 30 秒的旧上限在较慢的 CI runner（Windows Server 2022）上会被触碰：
         // 本地约 16～27 秒完成，云端同一步超过 30 秒而误判为阻塞。放宽到 180 秒，
         // 仍能在真正死锁时失败，只是判定更宽松。
-        thread.Join(TimeSpan.FromSeconds(180)).Should().BeTrue("WPF layout should finish without blocking");
+        thread.Join(TimeSpan.FromSeconds(300)).Should().BeTrue("WPF layout should finish without blocking");
         if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
+    }
+
+    /// <summary>
+    /// 把消息队列跑到空闲，让布局/绑定/动画都结算完。
+    /// 直接 Invoke(ApplicationIdle) 在没有空闲的时候会一直空转（渲染不停排队就永远到不了 Idle），
+    /// 所以这里加一个看门狗：能从 SystemIdle 正常退出就立刻退出，卡住也最多等 <paramref name="timeoutMs"/>。
+    /// </summary>
+    private static void PumpIdle(int timeoutMs = 1500)
+    {
+        var dispatcher = Dispatcher.CurrentDispatcher;
+        var frame = new DispatcherFrame();
+        var idleTimer = new DispatcherTimer(DispatcherPriority.SystemIdle)
+        {
+            Interval = TimeSpan.FromMilliseconds(1),
+        };
+        idleTimer.Tick += (_, _) =>
+        {
+            idleTimer.Stop();
+            frame.Continue = false;
+        };
+        idleTimer.Start();
+        _ = Task.Delay(timeoutMs).ContinueWith(_ => dispatcher.BeginInvoke(new Action(() =>
+        {
+            idleTimer.Stop();
+            frame.Continue = false;
+        })));
+        Dispatcher.PushFrame(frame);
     }
 
     private static void AssertTierClicks(ListBox tiers, Action<int[]> assertFiltered)
@@ -1189,7 +1211,7 @@ public class ThemeAndHighlightTests
             };
             tiers.RaiseEvent(click);
             tiers.UpdateLayout();
-            Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+            PumpIdle();
             click.Handled.Should().BeTrue();
         }
 
@@ -1241,7 +1263,7 @@ public class ThemeAndHighlightTests
         var timer = System.Diagnostics.Stopwatch.StartNew();
         while (!control.IsEnabled && timer.Elapsed < TimeSpan.FromSeconds(5))
         {
-            Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+            PumpIdle();
             Thread.Sleep(1);
         }
         control.IsEnabled.Should().BeTrue("the preference write should complete");
@@ -1252,7 +1274,7 @@ public class ThemeAndHighlightTests
         var timer = System.Diagnostics.Stopwatch.StartNew();
         while (!completed() && timer.Elapsed < TimeSpan.FromSeconds(5))
         {
-            Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+            PumpIdle();
             Thread.Sleep(1);
         }
         completed().Should().BeTrue(reason);

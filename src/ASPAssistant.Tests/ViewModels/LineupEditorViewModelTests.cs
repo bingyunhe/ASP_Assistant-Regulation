@@ -317,54 +317,77 @@ public class LineupEditorViewModelTests
     }
 
     [Fact]
-    public void Strategies_EditClearResetAndExportWithoutChangingOperatorPhases()
+    public void OpeningStrategy_EditsClearAndResetWithoutChangingOperatorPhases()
     {
         var source = Source();
-        source.Strategies = [new() { StrategyId = "band_copy", Tags = [StrategyTag.阵容核心] }];
+        source.Strategies = [new() { StrategyId = "band_copy" }];
         var vm = Create(source);
         var stats = vm.ActiveStats.ToList();
-        vm.StrategySlots.Should().HaveCount(9);
-        vm.SetStrategy(0, "band_amiya");
-        vm.ToggleStrategyTag(0, StrategyTag.优选);
-        vm.SetStrategy(1, "band_upgrade");
-        vm.ToggleStrategyTag(1, StrategyTag.次选);
-        vm.ToggleStrategyTag(1, StrategyTag.次选);
-        vm.StrategySlots[1].Tags.Should().BeEmpty();
+
+        // 旧文件里存了策略，打开时应该认得出来（取第一个非空的）。
+        vm.OpeningStrategyId.Should().Be("band_copy");
+        source.OpeningStrategyId.Should().Be("band_copy");
+
+        vm.OpeningStrategyId = "band_amiya";
+        vm.ToLineup().Strategies.Should().ContainSingle()
+            .Which.StrategyId.Should().Be("band_amiya");
         vm.ActiveStats.Should().BeEquivalentTo(stats);
         vm.ToLineup().Slots.Should().BeEquivalentTo(source.Slots);
-        source.Strategies[0].StrategyId.Should().Be("band_copy");
-        source.Strategies[0].Tags.Should().Equal(StrategyTag.阵容核心);
-        var exported = vm.ToLineup();
-        exported.Strategies.Should().HaveCount(2);
-        exported.Strategies[0].Tags.Clear();
-        vm.StrategySlots[0].Tags.Should().Equal(StrategyTag.阵容核心, StrategyTag.优选);
+
+        // 清空某个阶段的干员不会顺手把开局策略冲掉。
         vm.Clear();
-        vm.ToLineup().Strategies.Should().HaveCount(2);
+        vm.ToLineup().Strategies.Single().StrategyId.Should().Be("band_amiya");
+
         vm.Reset();
-        vm.ToLineup().Strategies.Should().BeEquivalentTo(source.Strategies);
-        vm.ClearStrategies();
+        vm.OpeningStrategyId.Should().Be("band_copy");
+        vm.ToLineup().Strategies.Single().StrategyId.Should().Be("band_copy");
+        source.Strategies.Single().StrategyId.Should().Be("band_copy");
+
+        // 不限定开局策略时导出空列表，不留空槽。
+        vm.OpeningStrategyId = "";
         vm.ToLineup().Strategies.Should().BeEmpty();
-        vm.ToLineup().Slots.Should().BeEquivalentTo(source.Slots);
+        vm.ToLineup().OpeningStrategyId.Should().BeEmpty();
+
         vm.Reset();
-        vm.SetStrategy(0, "");
-        vm.StrategySlots[0].Tags.Should().BeEmpty();
-        vm.Reset();
-        vm.ToLineup().Strategies.Should().BeEquivalentTo(source.Strategies);
+        vm.ToLineup().Strategies.Single().StrategyId.Should().Be("band_copy");
     }
 
     [Fact]
-    public async Task Strategies_RoundTripStoreShareAndReopenWithoutEnteringTracking()
+    public void OpeningStrategy_SurvivesJsonRoundTripAndKeepsOnlyOneSlot()
+    {
+        var lineup = Source();
+        lineup.Strategies =
+        [
+            new() { StrategyId = "band_amiya" },
+            new() { StrategyId = "band_upgrade" },
+        ];
+
+        // 旧分享里可能带了多个，只认第一个，避免把 9 个策略又带回来。
+        lineup.OpeningStrategyId.Should().Be("band_amiya");
+        lineup.SetOpeningStrategy("band_price");
+        lineup.Strategies.Should().ContainSingle().Which.StrategyId.Should().Be("band_price");
+        lineup.SetOpeningStrategy(null);
+        lineup.Strategies.Should().BeEmpty();
+        lineup.SetOpeningStrategy("  band_copy  ");
+        lineup.Strategies.Single().StrategyId.Should().Be("band_copy");
+
+        var json = System.Text.Json.JsonSerializer.Serialize(lineup);
+        json.Should().Contain("\"strategies\"");
+        var restored = System.Text.Json.JsonSerializer.Deserialize<Lineup>(json)!;
+        restored.OpeningStrategyId.Should().Be("band_copy");
+        restored.OpeningStrategyText.Should().BeEmpty(); // 名字由界面层回填
+        restored.OpeningStrategyName = "幻画为真";
+        restored.OpeningStrategyText.Should().Be("开局 幻画为真");
+    }
+
+    [Fact]
+    public async Task OpeningStrategy_RoundTripsThroughStoreShareAndReopenWithoutEnteringTracking()
     {
         var directory = Path.Combine(Path.GetTempPath(), $"lineup_strategies_{Guid.NewGuid():N}");
         try
         {
             var vm = Create(Source());
-            vm.SetStrategy(0, "band_amiya");
-            vm.ToggleStrategyTag(0, StrategyTag.阵容核心);
-            vm.SetStrategy(1, "band_upgrade");
-            vm.ToggleStrategyTag(1, StrategyTag.优选);
-            vm.SetStrategy(2, "unknown-shared-strategy");
-            vm.ToggleStrategyTag(2, StrategyTag.次选);
+            vm.OpeningStrategyId = "unknown-shared-strategy";
             var store = new LineupStore(directory);
             await store.SaveAsync(vm.ToLineup());
             var loaded = (await store.LoadAllAsync()).Single();
@@ -373,6 +396,7 @@ public class LineupEditorViewModelTests
             await share.ExportAsync(loaded);
             var imported = await share.ImportAsync(handler.Json);
             var reopened = Create(imported);
+            reopened.OpeningStrategyId.Should().Be("unknown-shared-strategy");
             reopened.ToLineup().Strategies.Should().BeEquivalentTo(loaded.Strategies);
             reopened.Reset();
             reopened.ToLineup().Strategies.Should().BeEquivalentTo(loaded.Strategies);

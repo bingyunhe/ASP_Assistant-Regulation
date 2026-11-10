@@ -21,9 +21,10 @@ public partial class LineupEditorViewModel : ObservableObject
     private readonly Dictionary<LineupPhase, List<LineupSlot>> _initialSlots;
     private readonly Dictionary<LineupPhase, ObservableCollection<LineupSlot>> _phaseSlots = [];
     private readonly LineupPhase _initialPhase;
-    private readonly List<LineupStrategySlot> _initialStrategies;
-
-    public ObservableCollection<LineupStrategySlot> StrategySlots { get; } = [];
+    private readonly string _initialOpeningStrategyId;
+    private readonly bool _initialUpgradeReminderEnabled;
+    private readonly int?[] _initialUpgradeFrom = new int?[UpgradeSchedule.LevelCount];
+    private readonly int?[] _initialUpgradeTo = new int?[UpgradeSchedule.LevelCount];
 
     public LineupPhase CurrentPhase { get; private set; }
 
@@ -49,6 +50,45 @@ public partial class LineupEditorViewModel : ObservableObject
     [ObservableProperty]
     private int _filledSlotCount;
 
+    /// <summary>开局策略 ID（一局一个，空表示不限定）。</summary>
+    [ObservableProperty]
+    private string _openingStrategyId = string.Empty;
+
+    /// <summary>是否开启升本回合提醒（只在阵容被追踪时生效）。</summary>
+    [ObservableProperty]
+    private bool _upgradeReminderEnabled = true;
+
+    // 2–6 本各一个起止区间；1 本是开局，不需要设置。
+    [ObservableProperty]
+    private int? _upgradeFrom2;
+
+    [ObservableProperty]
+    private int? _upgradeTo2;
+
+    [ObservableProperty]
+    private int? _upgradeFrom3;
+
+    [ObservableProperty]
+    private int? _upgradeTo3;
+
+    [ObservableProperty]
+    private int? _upgradeFrom4;
+
+    [ObservableProperty]
+    private int? _upgradeTo4;
+
+    [ObservableProperty]
+    private int? _upgradeFrom5;
+
+    [ObservableProperty]
+    private int? _upgradeTo5;
+
+    [ObservableProperty]
+    private int? _upgradeFrom6;
+
+    [ObservableProperty]
+    private int? _upgradeTo6;
+
     public LineupEditorViewModel(
         Lineup? source,
         IEnumerable<Operator> operators,
@@ -62,6 +102,26 @@ public partial class LineupEditorViewModel : ObservableObject
         LineupId = source?.Id ?? Guid.NewGuid().ToString("N");
         if (!string.IsNullOrWhiteSpace(source?.Name))
             _name = source!.Name;
+
+        if (source is not null)
+        {
+            _upgradeReminderEnabled = source.UpgradeReminderEnabled;
+            var from = source.UpgradeFrom ?? [];
+            var to = source.UpgradeTo ?? [];
+            _upgradeFrom2 = ReadAt(from, 1);
+            _upgradeTo2 = ReadAt(to, 1);
+            _upgradeFrom3 = ReadAt(from, 2);
+            _upgradeTo3 = ReadAt(to, 2);
+            _upgradeFrom4 = ReadAt(from, 3);
+            _upgradeTo4 = ReadAt(to, 3);
+            _upgradeFrom5 = ReadAt(from, 4);
+            _upgradeTo5 = ReadAt(to, 4);
+            _upgradeFrom6 = ReadAt(from, 5);
+            _upgradeTo6 = ReadAt(to, 5);
+        }
+        _initialUpgradeReminderEnabled = _upgradeReminderEnabled;
+        Array.Copy(UpgradeFromArray, _initialUpgradeFrom, UpgradeSchedule.LevelCount);
+        Array.Copy(UpgradeToArray, _initialUpgradeTo, UpgradeSchedule.LevelCount);
 
         foreach (var phase in Enum.GetValues<LineupPhase>())
         {
@@ -79,11 +139,8 @@ public partial class LineupEditorViewModel : ObservableObject
             _phaseSlots.Add(phase, slots);
         }
         _initialName = Name;
-        StrategySlots = new ObservableCollection<LineupStrategySlot>(
-            (source?.Strategies ?? []).Select(s => new LineupStrategySlot { StrategyId = s.StrategyId, Tags = [.. s.Tags] }));
-        while (StrategySlots.Count < MaxSlots)
-            StrategySlots.Add(new LineupStrategySlot());
-        _initialStrategies = StrategySlots.Select(s => new LineupStrategySlot { StrategyId = s.StrategyId, Tags = [.. s.Tags] }).ToList();
+        _openingStrategyId = source?.OpeningStrategyId ?? string.Empty;
+        _initialOpeningStrategyId = _openingStrategyId;
         _initialSlots = _phaseSlots.ToDictionary(pair => pair.Key, pair => pair.Value.Select(CloneSlot).ToList());
         _initialPhase = source is null ? LineupPhase.前期 : LineupPhase.后期;
         SelectPhase(_initialPhase);
@@ -158,9 +215,18 @@ public partial class LineupEditorViewModel : ObservableObject
     public void Reset()
     {
         Name = _initialName;
-        StrategySlots.Clear();
-        foreach (var slot in _initialStrategies)
-            StrategySlots.Add(new LineupStrategySlot { StrategyId = slot.StrategyId, Tags = [.. slot.Tags] });
+        UpgradeReminderEnabled = _initialUpgradeReminderEnabled;
+        UpgradeFrom2 = _initialUpgradeFrom[1];
+        UpgradeTo2 = _initialUpgradeTo[1];
+        UpgradeFrom3 = _initialUpgradeFrom[2];
+        UpgradeTo3 = _initialUpgradeTo[2];
+        UpgradeFrom4 = _initialUpgradeFrom[3];
+        UpgradeTo4 = _initialUpgradeTo[3];
+        UpgradeFrom5 = _initialUpgradeFrom[4];
+        UpgradeTo5 = _initialUpgradeTo[4];
+        UpgradeFrom6 = _initialUpgradeFrom[5];
+        UpgradeTo6 = _initialUpgradeTo[5];
+        OpeningStrategyId = _initialOpeningStrategyId;
         foreach (var (phase, slots) in _initialSlots)
             _phaseSlots[phase] = new ObservableCollection<LineupSlot>(slots.Select(CloneSlot));
         SelectPhase(_initialPhase);
@@ -172,30 +238,6 @@ public partial class LineupEditorViewModel : ObservableObject
         for (int i = 0; i < MaxSlots; i++)
             Slots.Add(new LineupSlot());
         Recalculate();
-    }
-
-    public void SetStrategy(int slotIndex, string strategyId)
-    {
-        StrategySlots[slotIndex] = new LineupStrategySlot
-        {
-            StrategyId = strategyId,
-            Tags = strategyId.Length == 0 ? [] : [.. StrategySlots[slotIndex].Tags],
-        };
-    }
-
-    public void ToggleStrategyTag(int slotIndex, StrategyTag tag)
-    {
-        var slot = StrategySlots[slotIndex];
-        if (slot.Tags.Contains(tag))
-            slot.Tags.Remove(tag);
-        else
-            slot.Tags.Add(tag);
-    }
-
-    public void ClearStrategies()
-    {
-        for (var i = 0; i < StrategySlots.Count; i++)
-            StrategySlots[i] = new LineupStrategySlot();
     }
 
     public void ToggleSlotTag(int slotIndex, LineupTag tag)
@@ -232,18 +274,40 @@ public partial class LineupEditorViewModel : ObservableObject
         FilledSlotCount = Slots.Count(s => !string.IsNullOrEmpty(s.OperatorName));
     }
 
-    public Lineup ToLineup() => new()
+    /// <summary>六个输入框当前的值，按「1 本 … 6 本」排列。</summary>
+    /// <summary>2–6 本的起点，索引按本数排列（索引 0/1 是 1/2 本，1 本恒为 null）。</summary>
+    public int?[] UpgradeFromArray =>
+        [null, UpgradeFrom2, UpgradeFrom3, UpgradeFrom4, UpgradeFrom5, UpgradeFrom6];
+
+    /// <summary>2–6 本的终点，与 <see cref="UpgradeFromArray"/> 一一对应。</summary>
+    public int?[] UpgradeToArray =>
+        [null, UpgradeTo2, UpgradeTo3, UpgradeTo4, UpgradeTo5, UpgradeTo6];
+
+    private static int? ReadAt(int?[] values, int index)
+        => index >= 0 && index < values.Length ? values[index] : null;
+
+    public Lineup ToLineup()
     {
-        Id = LineupId,
-        Name = string.IsNullOrWhiteSpace(Name) ? "未命名阵容" : Name.Trim(),
-        Slots = ExportPhase(LineupPhase.后期),
-        EarlySlots = ExportPhase(LineupPhase.前期),
-        MidSlots = ExportPhase(LineupPhase.中期),
-        SupportSlots = ExportPhase(LineupPhase.挂件),
-        Strategies = [.. StrategySlots.Where(s => s.StrategyId.Length > 0)
-            .Select(s => new LineupStrategySlot { StrategyId = s.StrategyId, Tags = [.. s.Tags] })],
-        UpdatedAt = DateTime.UtcNow,
-    };
+        return new Lineup
+        {
+            Id = LineupId,
+            Name = string.IsNullOrWhiteSpace(Name) ? "未命名阵容" : Name.Trim(),
+            Slots = ExportPhase(LineupPhase.后期),
+            EarlySlots = ExportPhase(LineupPhase.前期),
+            MidSlots = ExportPhase(LineupPhase.中期),
+            SupportSlots = ExportPhase(LineupPhase.挂件),
+            Strategies = string.IsNullOrWhiteSpace(OpeningStrategyId)
+                ? []
+                : [new LineupStrategySlot { StrategyId = OpeningStrategyId }],
+            UpgradeReminderEnabled = UpgradeReminderEnabled,
+            UpgradeFrom = UpgradeSchedule.FromArrays(UpgradeFromArray, UpgradeToArray).ToFromArray(),
+            UpgradeTo = UpgradeSchedule.FromArrays(UpgradeFromArray, UpgradeToArray).ToToArray(),
+            UpdatedAt = DateTime.UtcNow,
+        };
+    }
+
+    /// <summary>当前输入框对应的合法计划（越界值被丢弃）。</summary>
+    public UpgradeSchedule NormalizedSchedule => UpgradeSchedule.FromArrays(UpgradeFromArray, UpgradeToArray);
 
     private List<LineupSlot> ExportPhase(LineupPhase phase) => [.. _phaseSlots[phase]
         .Where(s => !string.IsNullOrEmpty(s.OperatorName)).Select(CloneSlot)];

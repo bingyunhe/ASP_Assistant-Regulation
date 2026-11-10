@@ -12,6 +12,7 @@ public partial class LineupListView : UserControl
 {
     public event Action? NewLineupRequested;
     public event Action? ImportLineupRequested;
+    public event Action<Lineup>? ActiveLineupRequested;
     public event Action<Lineup>? EditLineupRequested;
     public event Action<Lineup>? ShareLineupRequested;
     public event Action<Lineup>? TrackLineupRequested;
@@ -49,12 +50,25 @@ public partial class LineupListView : UserControl
 
     public void RefreshAllBadges()
     {
+        UpdateEmptyHint();
+
+        // 绑定还没生效（窗口还没显示/还没进过阵容页）时什么都不用做：
+        // 早期版本会在这里把 ItemsSource 置 null 再写回，而此时它本来就是 null，
+        // 结果把 {Binding Lineups} 表达式直接抹掉了，阵容页从此永远是空的。
+        if (LineupItems.ItemsSource is null)
+            return;
+
         // Force-rebuild templates: cheapest reliable way to refresh all the inline badges/icons
         // when a single lineup mutates (e.g. after editor returns).
-        var src = LineupItems.ItemsSource;
+        var binding = System.Windows.Data.BindingOperations.GetBinding(
+            LineupItems, ItemsControl.ItemsSourceProperty);
         LineupItems.ItemsSource = null;
-        LineupItems.ItemsSource = src;
-        UpdateEmptyHint();
+        if (binding is not null)
+        {
+            // 重新挂回绑定，而不是把旧集合当静态值写回去，否则后续换集合就再也刷新不了。
+            System.Windows.Data.BindingOperations.SetBinding(
+                LineupItems, ItemsControl.ItemsSourceProperty, binding);
+        }
     }
 
     private void OnNewLineup(object sender, RoutedEventArgs e) => NewLineupRequested?.Invoke();
@@ -65,6 +79,11 @@ public partial class LineupListView : UserControl
         if (sender is FrameworkElement fe && fe.Tag is string id && _vm is not null)
             return _vm.Lineups.FirstOrDefault(l => l.Id == id);
         return null;
+    }
+
+    private void OnActivateLineup(object sender, RoutedEventArgs e)
+    {
+        if (FindLineup(sender) is { } l) ActiveLineupRequested?.Invoke(l);
     }
 
     private void OnEditLineup(object sender, RoutedEventArgs e)
