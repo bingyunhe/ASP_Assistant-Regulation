@@ -132,6 +132,7 @@ public partial class SidePanelWindow : Window
             Interval = TimeSpan.FromSeconds(2.5),
         };
         _toastHideTimer.Tick += (_, _) => HideToast();
+        _upgradeReminderTimer.Tick += (_, _) => HideUpgradeReminder();
 
         SizeChanged     += OnSizeChanged;
         StateChanged    += OnStateChanged;
@@ -676,6 +677,7 @@ public partial class SidePanelWindow : Window
     {
         LineupView.NewLineupRequested += () => OpenEditor(null);
         LineupView.EditLineupRequested += lineup => OpenEditor(lineup);
+        LineupView.ActiveLineupRequested += lineup => _ = ActivateLineupAsync(lineup);
         LineupView.DeleteLineupRequested += async lineup =>
         {
             var ok = MessageBox.Show(
@@ -688,6 +690,8 @@ public partial class SidePanelWindow : Window
             try
             {
                 await LineupVm.DeleteAsync(lineup);
+                if (lineup.Id == _activeLineupId)
+                    await ClearActiveLineupAsync();
                 LineupView.RefreshAllBadges();
                 ShowToast($"已删除阵容“{lineup.Name}”");
             }
@@ -740,6 +744,7 @@ public partial class SidePanelWindow : Window
                 lineup.UpdatedAt = DateTime.UtcNow;
                 if (string.IsNullOrWhiteSpace(lineup.Name))
                     lineup.Name = "导入的阵容";
+                lineup.OpeningStrategyName = ResolveStrategyName(lineup.OpeningStrategyId);
                 await LineupVm.AddOrUpdateAsync(lineup);
                 LineupView.RefreshAllBadges();
                 ShowToast($"已导入阵容“{lineup.Name}”");
@@ -811,6 +816,12 @@ public partial class SidePanelWindow : Window
         PlannerView.DataContext = PlannerVm;
     }
 
+    /// <summary>按 data/strategies.json 解析开局策略名，卡片和提示都用得上。</summary>
+    private string ResolveStrategyName(string strategyId)
+        => strategyId.Length == 0
+            ? string.Empty
+            : _allStrategies.FirstOrDefault(s => s.Id == strategyId)?.Name ?? strategyId;
+
     private void OpenEditor(Lineup? source)
     {
         var calc = LineupVm.Calculator;
@@ -818,11 +829,12 @@ public partial class SidePanelWindow : Window
         var window = new LineupEditorWindow(editorVm, _allStrategies) { Owner = this };
         if (window.ShowDialog() != true || window.Result is null) return;
 
+        window.Result.OpeningStrategyName = ResolveStrategyName(window.Result.OpeningStrategyId);
         _ = LineupVm.AddOrUpdateAsync(window.Result).ContinueWith(_ =>
         {
             Dispatcher.Invoke(() =>
             {
-                LineupView.RefreshAllBadges();
+                SyncActiveFlags();
                 ShowToast(source is null ? "已创建阵容" : "已保存阵容");
             });
         });
@@ -863,4 +875,93 @@ public partial class SidePanelWindow : Window
         };
         ToastBorder.BeginAnimation(UIElement.OpacityProperty, fadeOut);
     }
+
+    // ── 当前使用阵容 + 升本回合提醒 ─────────────────────────────────────────
+
+    private string? _activeLineupId;
+    private readonly DispatcherTimer _upgradeReminderTimer = new() { Interval = TimeSpan.FromSeconds(30) };
+
+    /// <summary>当前使用的阵容变化（切换/删除）时触发，用于重置提醒去重状态。</summary>
+    public event Action? ActiveLineupChanged;
+
+    /// <summary>当前正在使用的阵容；升本提醒只按这一套阵容的区间判定。</summary>
+    public Lineup? ActiveLineup =>
+        LineupVm.Lineups.FirstOrDefault(l => string.Equals(l.Id, _activeLineupId, StringComparison.Ordinal));
+
+    public string? ActiveLineupId => _activeLineupId;
+
+    /// <summary>启动时根据设置里记录的 Id 回填「使用中」状态。</summary>
+    public void ApplyActiveLineupId(string? id)
+    {
+        _activeLineupId = string.IsNullOrWhiteSpace(id) ? null : id.Trim();
+        SyncActiveFlags();
+        ActiveLineupChanged?.Invoke();
+    }
+
+    /// <summary>把「使用中」标记同步到当前阵容集合（新增/保存阵容后实例会换新，需要重打标记）。</summary>
+    private void SyncActiveFlags()
+    {
+        foreach (var lineup in LineupVm.Lineups)
+            lineup.IsActive = string.Equals(lineup.Id, _activeLineupId, StringComparison.Ordinal);
+
+        LineupView.RefreshAllBadges();
+    }
+
+    private async Task ActivateLineupAsync(Lineup lineup)
+    {
+        if (string.Equals(lineup.Id, _activeLineupId, StringComparison.Ordinal))
+        {
+            ShowToast($"“{lineup.Name}”已经是当前使用的阵容");
+            return;
+        }
+
+        ApplyActiveLineupId(lineup.Id);
+        HideUpgradeReminder();
+        try
+        {
+            await _settingsManager.SaveActiveLineupIdAsync(lineup.Id);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn("Lineup", $"Save active lineup failed: {ex.Message}");
+            ShowToast("已切换阵容，但保存失败（重启后需要重新选择）");
+            return;
+        }
+
+        var schedule = lineup.UpgradePlan;
+        ShowToast(schedule.IsEmpty
+            ? $"当前阵容：{lineup.Name}"
+            : $"当前阵容：{lineup.Name}（{schedule.Describe()}）");
+    }
+
+    private async Task ClearActiveLineupAsync()
+    {
+        ApplyActiveLineupId(null);
+        HideUpgradeReminder();
+        try
+        {
+            await _settingsManager.SaveActiveLineupIdAsync(null);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn("Lineup", $"Clear active lineup failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>在侧栏顶部显示本回合的升本提醒（同一回合由调用方保证只弹一次）。</summary>
+    public void ShowUpgradeReminder(UpgradeReminder reminder)
+    {
+        UpgradeReminderText.Text = reminder.Message;
+        UpgradeReminderBanner.Visibility = Visibility.Visible;
+        _upgradeReminderTimer.Stop();
+        _upgradeReminderTimer.Start();
+    }
+
+    public void HideUpgradeReminder()
+    {
+        _upgradeReminderTimer.Stop();
+        UpgradeReminderBanner.Visibility = Visibility.Collapsed;
+    }
+
+    private void OnDismissUpgradeReminder(object sender, RoutedEventArgs e) => HideUpgradeReminder();
 }

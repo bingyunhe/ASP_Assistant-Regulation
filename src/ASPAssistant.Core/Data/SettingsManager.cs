@@ -153,4 +153,29 @@ public class SettingsManager
         await File.WriteAllTextAsync(path, tag.Trim());
     }
 
+    /// <summary>当前正在使用的阵容 Id（升本提醒只按这一个阵容的区间判定）。</summary>
+    public async Task<string?> LoadActiveLineupIdAsync()
+    {
+        var path = Path.Combine(_settingsDir, "active-lineup.txt");
+        if (!File.Exists(path))
+            return null;
+
+        var id = await File.ReadAllTextAsync(path);
+        return string.IsNullOrWhiteSpace(id) ? null : id.Trim();
+    }
+
+    public async Task SaveActiveLineupIdAsync(string? id)
+    {
+        Directory.CreateDirectory(_settingsDir);
+        var path = Path.Combine(_settingsDir, "active-lineup.txt");
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            if (File.Exists(path))
+                File.Delete(path);
+            return;
+        }
+
+        await File.WriteAllTextAsync(path, id.Trim());
+    }
+
 }

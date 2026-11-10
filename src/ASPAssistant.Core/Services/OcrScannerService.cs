@@ -1,4 +1,4 @@
-﻿// Modified for ASP Assistant Regulation on 2026-11-09; see NOTICE.
+// Modified for ASP Assistant Regulation on 2026-11-09; see NOTICE.
 using System.Threading.Channels;
 using System.Timers;
 using ASPAssistant.Core.GameModes;
@@ -17,9 +17,15 @@ public class OcrScannerService : IDisposable
     private readonly Func<IReadOnlyList<string>> _getTrackedNames;
     private readonly Func<IReadOnlyList<(string Name, IReadOnlyList<string> CoreCovenants, IReadOnlyList<string> AdditionalCovenants, IReadOnlyList<string> TemplateNames)>>? _getAllOperators;
     private readonly MaaBanIconMatcher? _iconMatcher;
+    private readonly RoundHudReader _roundHudReader;
     private readonly Timer _scanTimer;
     private readonly ShopStateStabilizer _stabilizer = new();
     private int _scanning; // re-entry guard (0=idle, 1=busy)
+
+    // Round HUD polling is throttled independently of the scan interval: two extra
+    // OCR region reads per second would compete with the shop read for the OCR thread.
+    private DateTime _lastRoundReadUtc = DateTime.MinValue;
+    private const int RoundReadIntervalMs = 1500;
 
     // Accumulated ban set for manual screenshot scans.
     private readonly HashSet<string> _accumulatedBans = [];
@@ -61,6 +67,13 @@ public class OcrScannerService : IDisposable
     /// </summary>
     public event Action<int>? ManualScanQueueChanged;
 
+    /// <summary>
+    /// Raised once per round-HUD read (~1.5s cadence) with the parsed round and
+    /// whether the in-game upgrade button already shows「已满级」.
+    /// Argument <c>Round</c> is 0 when this frame contained no readable round.
+    /// </summary>
+    public event Action<RoundHud>? RoundUpdated;
+
     public OcrScannerService(
         ScreenCaptureService captureService,
         IOcrStrategy ocrStrategy,
@@ -70,13 +83,15 @@ public class OcrScannerService : IDisposable
         Func<IReadOnlyList<string>> getTrackedNames,
         Func<IReadOnlyList<(string Name, IReadOnlyList<string> CoreCovenants, IReadOnlyList<string> AdditionalCovenants, IReadOnlyList<string> TemplateNames)>>? getAllOperators = null,
         MaaBanIconMatcher? iconMatcher = null,
-        int intervalMs = 3000)
+        int intervalMs = 3000,
+        RoundHudReader? roundHudReader = null)
     {
         _captureService = captureService;
         _ocrStrategy = ocrStrategy;
         _shopReader = shopReader;
         _ocrEngine = ocrEngine;
         _informationDetector = new InformationScreenDetector(ocrEngine, ocrStrategy);
+        _roundHudReader = roundHudReader ?? new RoundHudReader(ocrEngine);
         _gameState = gameState;
         _getTrackedNames = getTrackedNames;
         _getAllOperators = getAllOperators;
@@ -144,6 +159,8 @@ public class OcrScannerService : IDisposable
                 return;
             }
 
+            await RefreshRoundHudAsync(screenshot, imgWidth, imgHeight);
+
             var rawItems = await _shopReader.ReadAsync(screenshot, imgWidth, imgHeight, _getTrackedNames());
             PublishShopItems(rawItems);
         }
@@ -165,6 +182,38 @@ public class OcrScannerService : IDisposable
             return;
         _gameState.ShopItems = stableItems.ToList();
         GameStateUpdated?.Invoke(_gameState);
+    }
+
+    /// <summary>
+    /// Reads the in-game round HUD (top-left round counter + bottom-left upgrade button)
+    /// at a lower cadence than the main scan loop, and republishes <see cref="GameState.GameState"/>
+    /// only when a value actually changed.
+    /// </summary>
+    private async Task RefreshRoundHudAsync(byte[] screenshot, int width, int height)
+    {
+        var now = DateTime.UtcNow;
+        if ((now - _lastRoundReadUtc).TotalMilliseconds < RoundReadIntervalMs)
+            return;
+        _lastRoundReadUtc = now;
+
+        var hud = await _roundHudReader.ReadAsync(screenshot, width, height);
+
+        var changed = false;
+        if (hud.Round is { } round && _gameState.CurrentRound != round)
+        {
+            _gameState.CurrentRound = round;
+            changed = true;
+        }
+        if (_gameState.UpgradeMaxed != hud.UpgradeMaxed)
+        {
+            _gameState.UpgradeMaxed = hud.UpgradeMaxed;
+            changed = true;
+        }
+
+        if (changed)
+            GameStateUpdated?.Invoke(_gameState);
+
+        RoundUpdated?.Invoke(hud);
     }
 
     /// <summary>

@@ -68,6 +68,60 @@ public class Lineup
     [JsonPropertyName("strategies")]
     public List<LineupStrategySlot> Strategies { get; set; } = [];
 
+    /// <summary>
+    /// 升本计划（起点）：索引 0 是 1 本（固定为开局，忽略），索引 5 是 6 本；
+    /// 与 <see cref="UpgradeTo"/> 成对使用，两端都填了才算一本计划，null 表示这一本不提醒。
+    /// </summary>
+    [JsonPropertyName("upgradeFrom")]
+    public int?[] UpgradeFrom { get; set; } = new int?[UpgradeSchedule.LevelCount];
+
+    /// <summary>升本计划（终点）：与 <see cref="UpgradeFrom"/> 一一对应，闭区间。</summary>
+    [JsonPropertyName("upgradeTo")]
+    public int?[] UpgradeTo { get; set; } = new int?[UpgradeSchedule.LevelCount];
+
+    /// <summary>是否在这个阵容被选为"当前使用"时按计划提醒升本。</summary>
+    /// <summary>
+    /// 本套阵容打算用的<strong>开局策略</strong>：一局只能选一个，选它同时决定初始目标生命值。
+    /// 对外仍是 strategies 列表的第一项（旧文件里可能存了多个，取第一个非空的），
+    /// 这样旧阵容文件和分享链接都还能读。
+    /// </summary>
+    [JsonIgnore]
+    public string OpeningStrategyId =>
+        Strategies.FirstOrDefault(s => !string.IsNullOrWhiteSpace(s.StrategyId))?.StrategyId ?? string.Empty;
+
+    /// <summary>开局策略的名称，由界面层按 data/strategies.json 解析后回填，不落盘。</summary>
+    [JsonIgnore]
+    public string OpeningStrategyName { get; set; } = string.Empty;
+
+    /// <summary>阵容卡片上显示的开局摘要，例如「开局 众志合一」；没选时为空串。</summary>
+    [JsonIgnore]
+    public string OpeningStrategyText =>
+        OpeningStrategyName.Length == 0 ? string.Empty : $"开局 {OpeningStrategyName}";
+
+    /// <summary>设置开局策略；传空表示不限定。</summary>
+    public void SetOpeningStrategy(string? strategyId)
+        => Strategies = string.IsNullOrWhiteSpace(strategyId)
+            ? []
+            : [new LineupStrategySlot { StrategyId = strategyId.Trim() }];
+
+    [JsonPropertyName("upgradeReminderEnabled")]
+    public bool UpgradeReminderEnabled { get; set; } = true;
+
+    /// <summary>解析后的升本计划（非法/越界的回合值会被丢弃）。</summary>
+    [JsonIgnore]
+    public UpgradeSchedule UpgradePlan => UpgradeSchedule.FromArrays(UpgradeFrom, UpgradeTo);
+
+    /// <summary>阵容卡片上显示的计划摘要，例如「2本 3–4 · 3本 5–7」；没设置时为空串。</summary>
+    [JsonIgnore]
+    public string UpgradePlanText => UpgradePlan.IsEmpty ? string.Empty : UpgradePlan.Describe();
+
+    /// <summary>
+    /// 是否为「当前使用」的阵容（只影响本机升本提醒，不落盘到阵容文件）。
+    /// 由 SettingsManager 的 active-lineup.txt 记录，启动时按 Id 匹配回填。
+    /// </summary>
+    [JsonIgnore]
+    public bool IsActive { get; set; }
+
     [JsonPropertyName("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

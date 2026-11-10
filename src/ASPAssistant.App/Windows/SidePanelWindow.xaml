@@ -91,6 +91,26 @@
                 </ScrollViewer>
             </Border>
 
+            <!-- Upgrade-round reminder banner (shown per round while inside the active lineup's plan) -->
+            <Border x:Name="UpgradeReminderBanner" DockPanel.Dock="Top"
+                    Background="{DynamicResource WarningTintBrush}"
+                    BorderBrush="{DynamicResource WarningBrush}" BorderThickness="0,0,0,1"
+                    Visibility="Collapsed" Padding="10,6,8,6">
+                <DockPanel>
+                    <Button x:Name="UpgradeReminderCloseButton" DockPanel.Dock="Right"
+                            Content="✕" Click="OnDismissUpgradeReminder"
+                            FontSize="11" Cursor="Hand" Width="18" Height="18"
+                            Margin="6,0,0,0" Padding="0"
+                            BorderThickness="0" Background="Transparent"
+                            Foreground="{DynamicResource WarningMutedBrush}"
+                            ToolTip="关闭提醒" />
+                    <TextBlock x:Name="UpgradeReminderText"
+                               Foreground="{DynamicResource WarningTextBrush}"
+                               FontSize="11" FontWeight="SemiBold"
+                               TextWrapping="Wrap" VerticalAlignment="Center" />
+                </DockPanel>
+            </Border>
+
             <!-- Update notification banner (hidden until a new version is found) -->
             <Border x:Name="UpdateBanner" DockPanel.Dock="Top"
                     Background="{DynamicResource SuccessTintBrush}"

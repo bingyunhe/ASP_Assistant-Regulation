@@ -6,7 +6,7 @@
         xmlns:models="clr-namespace:ASPAssistant.Core.Models;assembly=ASPAssistant.Core"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="阵容编辑"
-        Width="980" Height="660" MinWidth="720" MinHeight="500"
+        Width="980" Height="740" MinWidth="720" MinHeight="560"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
         ResizeMode="CanResizeWithGrip"
@@ -153,45 +153,236 @@
 
                 <!-- Slots grid -->
                 <DockPanel x:Name="SlotsPanel" Grid.Column="0" Margin="12">
-                    <!-- Top: name + summary -->
-                    <Border DockPanel.Dock="Top" Background="{DynamicResource CardBackgroundBrush}"
-                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
-                            CornerRadius="6" Padding="10" Margin="0,0,0,10">
-                        <DockPanel>
-                            <Border DockPanel.Dock="Right"
-                                    Background="{DynamicResource AccentTintBrush}" CornerRadius="4"
-                                    Padding="8,4" VerticalAlignment="Center">
-                                <TextBlock x:Name="ActivatedSummaryText"
-                                           Foreground="{DynamicResource AccentBrush}"
-                                           FontSize="12" FontWeight="SemiBold"
-                                           Text="激活 0 个盟约" />
-                            </Border>
+                    <!-- 名字 + 开局策略：左右两栏，省下竖向空间给下面的干员格 -->
+                    <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- 左：名字 + 激活摘要 -->
+                        <Border Grid.Column="0" Margin="0,0,5,0"
+                                Background="{DynamicResource CardBackgroundBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                CornerRadius="6" Padding="10">
                             <StackPanel>
                                 <TextBlock Text="阵容名" Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontSize="10" />
                                 <TextBox x:Name="LineupNameBox"
-                                         Background="{DynamicResource InputOverlayBrush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                         Background="{DynamicResource InputOverlayBrush}"
+                                         Foreground="{DynamicResource TextPrimaryBrush}"
                                          BorderBrush="{DynamicResource BorderBrush}"
                                          BorderThickness="0,0,0,1"
-                                         Padding="2,4" FontSize="14"
+                                         Padding="2,4" FontSize="14" Margin="0,2,0,0"
                                          CaretBrush="{DynamicResource AccentBrush}"
                                          TextChanged="OnLineupNameChanged" />
+                                <TextBlock x:Name="ActivatedSummaryText" Margin="0,8,0,0"
+                                           Foreground="{DynamicResource AccentBrush}"
+                                           FontSize="10" FontWeight="SemiBold"
+                                           TextWrapping="Wrap"
+                                           Text="激活 0 个盟约" />
                             </StackPanel>
-                        </DockPanel>
+                        </Border>
+
+                        <!-- 右：开局策略（一局只能选一个） -->
+                        <Border x:Name="OpeningStrategyCard" Grid.Column="1" Margin="5,0,0,0"
+                                Background="{DynamicResource CardBackgroundBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                CornerRadius="6" Padding="10">
+                            <StackPanel>
+                                <DockPanel>
+                                    <Button x:Name="OpeningStrategyPickButton" DockPanel.Dock="Right"
+                                            Content="选择" Style="{DynamicResource EditorSecondaryButton}"
+                                            Padding="10,1" FontSize="11" VerticalAlignment="Center"
+                                            Click="OnPickOpeningStrategy" />
+                                    <TextBlock Text="开局策略" FontSize="12" FontWeight="SemiBold"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextPrimaryBrush}" />
+                                    <TextBlock Text="一局一个，定初始生命值" FontSize="10"
+                                               VerticalAlignment="Center" Margin="8,0,0,0"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                                </DockPanel>
+                                <StackPanel x:Name="OpeningStrategyHost" Margin="0,6,0,0" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- 升本计划：2–6 本各一个回合区间，一行排开 -->
+                    <Border DockPanel.Dock="Top" Background="{DynamicResource CardBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="6" Padding="12,8" Margin="0,0,0,10">
+                        <StackPanel>
+                            <DockPanel>
+                                <CheckBox x:Name="UpgradeReminderToggle"
+                                          DockPanel.Dock="Right"
+                                          Content="看情况自行判断升本（勾上就不提醒）"
+                                          FontSize="11"
+                                          VerticalAlignment="Center"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"
+                                          Checked="OnUpgradeReminderToggled"
+                                          Unchecked="OnUpgradeReminderToggled" />
+                                <TextBlock Text="升本计划" FontSize="12" FontWeight="SemiBold"
+                                           VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextPrimaryBrush}" />
+                                <TextBlock Text="填回合区间，不填就是没打算" FontSize="10"
+                                           VerticalAlignment="Center" Margin="8,0,0,0"
+                                           Foreground="{DynamicResource TextSecondaryBrush}" />
+                            </DockPanel>
+
+                            <WrapPanel x:Name="UpgradeRangeHost" Margin="0,8,0,0">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,16,6">
+                                        <Border Background="{DynamicResource AccentTintBrush}" CornerRadius="3"
+                                                Padding="5,1" Margin="0,0,6,0" VerticalAlignment="Center">
+                                            <TextBlock Text="2 本" FontSize="10" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource AccentBrush}" />
+                                        </Border>
+                                        <TextBox x:Name="UpgradeFromBox2" Width="34"
+                                                 Background="{DynamicResource InputOverlayBrush}"
+                                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                                 BorderBrush="{DynamicResource BorderBrush}"
+                                                 BorderThickness="0,0,0,1" Padding="0,2"
+                                                 FontSize="12" TextAlignment="Center"
+                                                 MaxLength="2" VerticalAlignment="Center"
+                                                 CaretBrush="{DynamicResource AccentBrush}"
+                                                 TextChanged="OnUpgradeRoundChanged" />
+                                        <TextBlock Text="–" FontSize="11" Margin="3,0" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        <TextBox x:Name="UpgradeToBox2" Width="34"
+                                                 Background="{DynamicResource InputOverlayBrush}"
+                                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                                 BorderBrush="{DynamicResource BorderBrush}"
+                                                 BorderThickness="0,0,0,1" Padding="0,2"
+                                                 FontSize="12" TextAlignment="Center"
+                                                 MaxLength="2" VerticalAlignment="Center"
+                                                 CaretBrush="{DynamicResource AccentBrush}"
+                                                 TextChanged="OnUpgradeRoundChanged" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,16,6">
+                                        <Border Background="{DynamicResource AccentTintBrush}" CornerRadius="3"
+                                                Padding="5,1" Margin="0,0,6,0" VerticalAlignment="Center">
+                                            <TextBlock Text="3 本" FontSize="10" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource AccentBrush}" />
+                                        </Border>
+                                        <TextBox x:Name="UpgradeFromBox3" Width="34"
+                                                 Background="{DynamicResource InputOverlayBrush}"
+                                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                                 BorderBrush="{DynamicResource BorderBrush}"
+                                                 BorderThickness="0,0,0,1" Padding="0,2"
+                                                 FontSize="12" TextAlignment="Center"
+                                                 MaxLength="2" VerticalAlignment="Center"
+                                                 CaretBrush="{DynamicResource AccentBrush}"
+                                                 TextChanged="OnUpgradeRoundChanged" />
+                                        <TextBlock Text="–" FontSize="11" Margin="3,0" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        <TextBox x:Name="UpgradeToBox3" Width="34"
+                                                 Background="{DynamicResource InputOverlayBrush}"
+                                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                                 BorderBrush="{DynamicResource BorderBrush}"
+                                                 BorderThickness="0,0,0,1" Padding="0,2"
+                                                 FontSize="12" TextAlignment="Center"
+                                                 MaxLength="2" VerticalAlignment="Center"
+                                                 CaretBrush="{DynamicResource AccentBrush}"
+                                                 TextChanged="OnUpgradeRoundChanged" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,16,6">
+                                        <Border Background="{DynamicResource AccentTintBrush}" CornerRadius="3"
+                                                Padding="5,1" Margin="0,0,6,0" VerticalAlignment="Center">
+                                            <TextBlock Text="4 本" FontSize="10" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource AccentBrush}" />
+                                        </Border>
+                                        <TextBox x:Name="UpgradeFromBox4" Width="34"
+                                                 Background="{DynamicResource InputOverlayBrush}"
+                                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                                 BorderBrush="{DynamicResource BorderBrush}"
+                                                 BorderThickness="0,0,0,1" Padding="0,2"
+                                                 FontSize="12" TextAlignment="Center"
+                                                 MaxLength="2" VerticalAlignment="Center"
+                                                 CaretBrush="{DynamicResource AccentBrush}"
+                                                 TextChanged="OnUpgradeRoundChanged" />
+                                        <TextBlock Text="–" FontSize="11" Margin="3,0" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        <TextBox x:Name="UpgradeToBox4" Width="34"
+                                                 Background="{DynamicResource InputOverlayBrush}"
+                                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                                 BorderBrush="{DynamicResource BorderBrush}"
+                                                 BorderThickness="0,0,0,1" Padding="0,2"
+                                                 FontSize="12" TextAlignment="Center"
+                                                 MaxLength="2" VerticalAlignment="Center"
+                                                 CaretBrush="{DynamicResource AccentBrush}"
+                                                 TextChanged="OnUpgradeRoundChanged" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,16,6">
+                                        <Border Background="{DynamicResource AccentTintBrush}" CornerRadius="3"
+                                                Padding="5,1" Margin="0,0,6,0" VerticalAlignment="Center">
+                                            <TextBlock Text="5 本" FontSize="10" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource AccentBrush}" />
+                                        </Border>
+                                        <TextBox x:Name="UpgradeFromBox5" Width="34"
+                                                 Background="{DynamicResource InputOverlayBrush}"
+                                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                                 BorderBrush="{DynamicResource BorderBrush}"
+                                                 BorderThickness="0,0,0,1" Padding="0,2"
+                                                 FontSize="12" TextAlignment="Center"
+                                                 MaxLength="2" VerticalAlignment="Center"
+                                                 CaretBrush="{DynamicResource AccentBrush}"
+                                                 TextChanged="OnUpgradeRoundChanged" />
+                                        <TextBlock Text="–" FontSize="11" Margin="3,0" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        <TextBox x:Name="UpgradeToBox5" Width="34"
+                                                 Background="{DynamicResource InputOverlayBrush}"
+                                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                                 BorderBrush="{DynamicResource BorderBrush}"
+                                                 BorderThickness="0,0,0,1" Padding="0,2"
+                                                 FontSize="12" TextAlignment="Center"
+                                                 MaxLength="2" VerticalAlignment="Center"
+                                                 CaretBrush="{DynamicResource AccentBrush}"
+                                                 TextChanged="OnUpgradeRoundChanged" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,16,6">
+                                        <Border Background="{DynamicResource AccentTintBrush}" CornerRadius="3"
+                                                Padding="5,1" Margin="0,0,6,0" VerticalAlignment="Center">
+                                            <TextBlock Text="6 本" FontSize="10" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource AccentBrush}" />
+                                        </Border>
+                                        <TextBox x:Name="UpgradeFromBox6" Width="34"
+                                                 Background="{DynamicResource InputOverlayBrush}"
+                                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                                 BorderBrush="{DynamicResource BorderBrush}"
+                                                 BorderThickness="0,0,0,1" Padding="0,2"
+                                                 FontSize="12" TextAlignment="Center"
+                                                 MaxLength="2" VerticalAlignment="Center"
+                                                 CaretBrush="{DynamicResource AccentBrush}"
+                                                 TextChanged="OnUpgradeRoundChanged" />
+                                        <TextBlock Text="–" FontSize="11" Margin="3,0" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}" />
+                                        <TextBox x:Name="UpgradeToBox6" Width="34"
+                                                 Background="{DynamicResource InputOverlayBrush}"
+                                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                                 BorderBrush="{DynamicResource BorderBrush}"
+                                                 BorderThickness="0,0,0,1" Padding="0,2"
+                                                 FontSize="12" TextAlignment="Center"
+                                                 MaxLength="2" VerticalAlignment="Center"
+                                                 CaretBrush="{DynamicResource AccentBrush}"
+                                                 TextChanged="OnUpgradeRoundChanged" />
+                                </StackPanel>
+                            </WrapPanel>
+
+                            <TextBlock x:Name="UpgradePlanHint" Margin="0,2,0,0" FontSize="10"
+                                       TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                        </StackPanel>
                     </Border>
 
                     <WrapPanel x:Name="PhaseTabs" DockPanel.Dock="Top" Margin="4,0,0,6" />
 
-                    <!-- 9 slot cards in 3x3 grid -->
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <ItemsControl x:Name="SlotsHost">
+                    <!-- 9 slot cards in 3x3 grid，撑满剩余高度，不滚动 -->
+                    <ItemsControl x:Name="SlotsHost" VerticalAlignment="Stretch">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <UniformGrid Rows="3" Columns="3" />
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                     </ItemsControl>
-                    </ScrollViewer>
                 </DockPanel>
 
                 <!-- Right: covenant breakdown -->

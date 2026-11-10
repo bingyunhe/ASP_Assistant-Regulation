@@ -48,6 +48,22 @@
                 <TextBlock Text="商店里出现追踪目标时，会在名称上方标出绿色星号。" FontSize="10" TextWrapping="Wrap"
                            Margin="2,0,0,10" Foreground="{DynamicResource TextSecondaryBrush}" />
 
+                <!-- 游戏状态（实时 OCR 识别到的对局信息） -->
+                <Border x:Name="GameStateCard" Background="{DynamicResource CardBackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                        CornerRadius="4" Padding="8,6" Margin="0,0,0,10">
+                    <StackPanel DataContext="{Binding GameState}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11">
+                                <Run Text="回合 " /><Run Text="{Binding RoundDisplay, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            </TextBlock>
+                            <TextBlock Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="14,0,0,0">
+                                <Run Text="升本 " /><Run Text="{Binding UpgradeStateDisplay, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
+                            </TextBlock>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
                 <!-- Covenants the tracked operators bring -->
                 <StackPanel x:Name="CovenantSection" Visibility="Collapsed" Margin="0,0,0,10">
                     <ContentControl Style="{StaticResource FilterGroupHeader}" Content="目标盟约分布" />
