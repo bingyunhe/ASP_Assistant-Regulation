@@ -12,6 +12,7 @@ public partial class LineupListView : UserControl
 {
     public event Action? NewLineupRequested;
     public event Action? ImportLineupRequested;
+    public event Action<Lineup>? ActiveLineupRequested;
     public event Action<Lineup>? EditLineupRequested;
     public event Action<Lineup>? ShareLineupRequested;
     public event Action<Lineup>? TrackLineupRequested;
@@ -65,6 +66,11 @@ public partial class LineupListView : UserControl
         if (sender is FrameworkElement fe && fe.Tag is string id && _vm is not null)
             return _vm.Lineups.FirstOrDefault(l => l.Id == id);
         return null;
+    }
+
+    private void OnActivateLineup(object sender, RoutedEventArgs e)
+    {
+        if (FindLineup(sender) is { } l) ActiveLineupRequested?.Invoke(l);
     }
 
     private void OnEditLineup(object sender, RoutedEventArgs e)

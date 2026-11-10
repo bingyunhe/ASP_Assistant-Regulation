@@ -180,6 +180,116 @@
                         </DockPanel>
                     </Border>
 
+                    <!-- 升本回合计划（每个阵容独立） -->
+                    <Border DockPanel.Dock="Top" Background="{DynamicResource CardBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                            CornerRadius="6" Padding="10,8" Margin="0,0,0,10">
+                        <StackPanel>
+                            <DockPanel>
+                                <CheckBox x:Name="UpgradeReminderToggle"
+                                          DockPanel.Dock="Right"
+                                          Content="到回合时提醒我"
+                                          FontSize="11"
+                                          VerticalAlignment="Center"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"
+                                          Checked="OnUpgradeReminderToggled"
+                                          Unchecked="OnUpgradeReminderToggled" />
+                                <TextBlock Text="升本回合"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           FontSize="10" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <UniformGrid Columns="3" Margin="0,8,2,0">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,14,6">
+                                    <TextBlock Text="1 本" Width="26" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" />
+                                    <TextBox x:Name="UpgradeRoundBox1" Width="44"
+                                             HorizontalAlignment="Left" VerticalAlignment="Center"
+                                             Background="{DynamicResource InputOverlayBrush}"
+                                             Foreground="{DynamicResource TextPrimaryBrush}"
+                                             BorderBrush="{DynamicResource BorderBrush}"
+                                             BorderThickness="0,0,0,1" Padding="2,2"
+                                             FontSize="13" TextAlignment="Center"
+                                             MaxLength="2"
+                                             CaretBrush="{DynamicResource AccentBrush}"
+                                             TextChanged="OnUpgradeRoundChanged" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,14,6">
+                                    <TextBlock Text="2 本" Width="26" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" />
+                                    <TextBox x:Name="UpgradeRoundBox2" Width="44"
+                                             HorizontalAlignment="Left" VerticalAlignment="Center"
+                                             Background="{DynamicResource InputOverlayBrush}"
+                                             Foreground="{DynamicResource TextPrimaryBrush}"
+                                             BorderBrush="{DynamicResource BorderBrush}"
+                                             BorderThickness="0,0,0,1" Padding="2,2"
+                                             FontSize="13" TextAlignment="Center"
+                                             MaxLength="2"
+                                             CaretBrush="{DynamicResource AccentBrush}"
+                                             TextChanged="OnUpgradeRoundChanged" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,14,6">
+                                    <TextBlock Text="3 本" Width="26" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" />
+                                    <TextBox x:Name="UpgradeRoundBox3" Width="44"
+                                             HorizontalAlignment="Left" VerticalAlignment="Center"
+                                             Background="{DynamicResource InputOverlayBrush}"
+                                             Foreground="{DynamicResource TextPrimaryBrush}"
+                                             BorderBrush="{DynamicResource BorderBrush}"
+                                             BorderThickness="0,0,0,1" Padding="2,2"
+                                             FontSize="13" TextAlignment="Center"
+                                             MaxLength="2"
+                                             CaretBrush="{DynamicResource AccentBrush}"
+                                             TextChanged="OnUpgradeRoundChanged" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,14,6">
+                                    <TextBlock Text="4 本" Width="26" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" />
+                                    <TextBox x:Name="UpgradeRoundBox4" Width="44"
+                                             HorizontalAlignment="Left" VerticalAlignment="Center"
+                                             Background="{DynamicResource InputOverlayBrush}"
+                                             Foreground="{DynamicResource TextPrimaryBrush}"
+                                             BorderBrush="{DynamicResource BorderBrush}"
+                                             BorderThickness="0,0,0,1" Padding="2,2"
+                                             FontSize="13" TextAlignment="Center"
+                                             MaxLength="2"
+                                             CaretBrush="{DynamicResource AccentBrush}"
+                                             TextChanged="OnUpgradeRoundChanged" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,14,6">
+                                    <TextBlock Text="5 本" Width="26" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" />
+                                    <TextBox x:Name="UpgradeRoundBox5" Width="44"
+                                             HorizontalAlignment="Left" VerticalAlignment="Center"
+                                             Background="{DynamicResource InputOverlayBrush}"
+                                             Foreground="{DynamicResource TextPrimaryBrush}"
+                                             BorderBrush="{DynamicResource BorderBrush}"
+                                             BorderThickness="0,0,0,1" Padding="2,2"
+                                             FontSize="13" TextAlignment="Center"
+                                             MaxLength="2"
+                                             CaretBrush="{DynamicResource AccentBrush}"
+                                             TextChanged="OnUpgradeRoundChanged" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,14,6">
+                                    <TextBlock Text="6 本" Width="26" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" />
+                                    <TextBox x:Name="UpgradeRoundBox6" Width="44"
+                                             HorizontalAlignment="Left" VerticalAlignment="Center"
+                                             Background="{DynamicResource InputOverlayBrush}"
+                                             Foreground="{DynamicResource TextPrimaryBrush}"
+                                             BorderBrush="{DynamicResource BorderBrush}"
+                                             BorderThickness="0,0,0,1" Padding="2,2"
+                                             FontSize="13" TextAlignment="Center"
+                                             MaxLength="2"
+                                             CaretBrush="{DynamicResource AccentBrush}"
+                                             TextChanged="OnUpgradeRoundChanged" />
+                                </StackPanel>
+                            </UniformGrid>
+                            <TextBlock x:Name="UpgradePlanHint" Margin="0,2,0,0"
+                                       FontSize="10" TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                        </StackPanel>
+                    </Border>
+
                     <WrapPanel x:Name="PhaseTabs" DockPanel.Dock="Top" Margin="4,0,0,6" />
 
                     <!-- 9 slot cards in 3x3 grid -->

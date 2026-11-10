@@ -117,18 +117,18 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <TextBlock Text="游戏状态（实时 OCR）" FontSize="12" FontWeight="Bold" Visibility="Collapsed"
+            <TextBlock Text="游戏状态（实时 OCR）" FontSize="12" FontWeight="Bold"
                        Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,12,0,4" />
-            <Border Background="{DynamicResource CardBackgroundBrush}" Visibility="Collapsed"
+            <Border Background="{DynamicResource CardBackgroundBrush}"
                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                     CornerRadius="4" Padding="8">
                 <StackPanel DataContext="{Binding GameState}">
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                         <TextBlock Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12">
-                            <Run Text="回合: " /><Run Text="{Binding CurrentRound}" />
+                            <Run Text="回合: " /><Run Text="{Binding RoundDisplay, Mode=OneWay}" />
                         </TextBlock>
                         <TextBlock Foreground="{DynamicResource TextSecondaryBrush}" FontSize="12" Margin="16,0,0,0">
-                            <Run Text="金币: " /><Run Text="{Binding Gold}" />
+                            <Run Text="升本: " /><Run Text="{Binding UpgradeStateDisplay, Mode=OneWay}" />
                         </TextBlock>
                     </StackPanel>
                     <ItemsControl ItemsSource="{Binding TrackingAlerts}">

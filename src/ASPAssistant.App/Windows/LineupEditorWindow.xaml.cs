@@ -52,8 +52,118 @@ public partial class LineupEditorWindow : Window
             button.Tag = (string)button.Content == (_editingStrategies ? "策略" : _vm.CurrentPhase.ToString()) ? "active" : null;
         Grid.SetColumnSpan(SlotsPanel, _editingStrategies ? 2 : 1);
         CovenantPanel.Visibility = _editingStrategies ? Visibility.Collapsed : Visibility.Visible;
+        SyncUpgradeBoxes();
         BuildSlotCards();
         RefreshCovenantPanel();
+    }
+
+    // ── 升本回合 ────────────────────────────────────────────────────────────
+
+    private bool _syncingUpgradeBoxes;
+    private bool _upgradeInputInvalid;
+
+    private TextBox[] UpgradeBoxes =>
+        [UpgradeRoundBox1, UpgradeRoundBox2, UpgradeRoundBox3, UpgradeRoundBox4, UpgradeRoundBox5, UpgradeRoundBox6];
+
+    private void SyncUpgradeBoxes()
+    {
+        var rounds = _vm.UpgradeRoundArray;
+        var boxes = UpgradeBoxes;
+        _syncingUpgradeBoxes = true;
+        try
+        {
+            for (var i = 0; i < boxes.Length && i < rounds.Length; i++)
+                boxes[i].Text = rounds[i]?.ToString() ?? "";
+            UpgradeReminderToggle.IsChecked = _vm.UpgradeReminderEnabled;
+            _upgradeInputInvalid = false;
+        }
+        finally
+        {
+            _syncingUpgradeBoxes = false;
+        }
+
+        UpdateUpgradeHint();
+    }
+
+    private void OnUpgradeRoundChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_syncingUpgradeBoxes) return;
+        ReadUpgradeBoxes();
+        UpdateUpgradeHint();
+    }
+
+    private void ReadUpgradeBoxes()
+    {
+        var boxes = UpgradeBoxes;
+        var rounds = new int?[UpgradeSchedule.LevelCount];
+        var invalid = false;
+        for (var i = 0; i < boxes.Length; i++)
+        {
+            rounds[i] = ParseRound(boxes[i].Text, out var ok);
+            if (!ok) invalid = true;
+        }
+
+        _vm.UpgradeRound1 = rounds[0];
+        _vm.UpgradeRound2 = rounds[1];
+        _vm.UpgradeRound3 = rounds[2];
+        _vm.UpgradeRound4 = rounds[3];
+        _vm.UpgradeRound5 = rounds[4];
+        _vm.UpgradeRound6 = rounds[5];
+        _upgradeInputInvalid = invalid;
+    }
+
+    private void OnUpgradeReminderToggled(object sender, RoutedEventArgs e)
+    {
+        if (_syncingUpgradeBoxes) return;
+        _vm.UpgradeReminderEnabled = UpgradeReminderToggle.IsChecked == true;
+        UpdateUpgradeHint();
+    }
+
+    /// <summary>空文本表示「这一本不提醒」；其余必须是 1–30 的整数，否则 ok=false。</summary>
+    private static int? ParseRound(string? text, out bool ok)
+    {
+        text = text?.Trim();
+        if (string.IsNullOrEmpty(text))
+        {
+            ok = true;
+            return null;
+        }
+
+        if (int.TryParse(text, out var value)
+            && value >= UpgradeSchedule.MinRound && value <= UpgradeSchedule.MaxRound)
+        {
+            ok = true;
+            return value;
+        }
+
+        ok = false;
+        return null;
+    }
+
+    private void UpdateUpgradeHint()
+    {
+        var brushKey = "TextSecondaryBrush";
+        var schedule = _vm.NormalizedSchedule;
+        string text;
+
+        if (_upgradeInputInvalid)
+        {
+            text = $"只能填 {UpgradeSchedule.MinRound}–{UpgradeSchedule.MaxRound} 的回合数";
+            brushKey = "WarningTextBrush";
+        }
+        else if (!schedule.IsEmpty)
+        {
+            text = _vm.UpgradeReminderEnabled
+                ? $"到回合提醒：{schedule.Describe()}"
+                : $"提醒已关闭（{schedule.Describe()}）";
+        }
+        else
+        {
+            text = "未设置，不会提醒";
+        }
+
+        UpgradePlanHint.Text = text;
+        UpgradePlanHint.Foreground = (Brush)FindResource(brushKey);
     }
 
     private void OnTitleBarDrag(object sender, MouseButtonEventArgs e)
@@ -69,6 +179,15 @@ public partial class LineupEditorWindow : Window
 
     private void OnSaveClick(object sender, RoutedEventArgs e)
     {
+        ReadUpgradeBoxes();
+        UpdateUpgradeHint();
+        if (_upgradeInputInvalid)
+        {
+            MessageBox.Show(this, $"升本回合只能填 {UpgradeSchedule.MinRound}–{UpgradeSchedule.MaxRound} 的整数，"
+                + "哪一本不想提醒就留空。", "升本回合", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         Result = _vm.ToLineup();
         DialogResult = true;
     }

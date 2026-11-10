@@ -64,6 +64,28 @@ public class Lineup
     [JsonPropertyName("strategies")]
     public List<LineupStrategySlot> Strategies { get; set; } = [];
 
+    /// <summary>
+    /// 升本计划：索引 0 是「升到 1 本」的计划回合，索引 5 是「升到 6 本」；
+    /// null 表示这一本不提醒。一局最多 6 本，所以固定 6 个位置。
+    /// </summary>
+    [JsonPropertyName("upgradeRounds")]
+    public int?[] UpgradeRounds { get; set; } = new int?[UpgradeSchedule.LevelCount];
+
+    /// <summary>是否在这个阵容被选为"当前使用"时按计划提醒升本。</summary>
+    [JsonPropertyName("upgradeReminderEnabled")]
+    public bool UpgradeReminderEnabled { get; set; } = true;
+
+    /// <summary>解析后的升本计划（非法/越界的回合值会被丢弃）。</summary>
+    [JsonIgnore]
+    public UpgradeSchedule UpgradePlan => UpgradeSchedule.FromArray(UpgradeRounds);
+
+    /// <summary>
+    /// 是否为「当前使用」的阵容（只影响本机升本提醒，不落盘到阵容文件）。
+    /// 由 SettingsManager 的 active-lineup.txt 记录，启动时按 Id 匹配回填。
+    /// </summary>
+    [JsonIgnore]
+    public bool IsActive { get; set; }
+
     [JsonPropertyName("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

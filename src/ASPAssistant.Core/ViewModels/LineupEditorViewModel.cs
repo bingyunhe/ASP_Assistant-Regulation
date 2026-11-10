@@ -22,6 +22,8 @@ public partial class LineupEditorViewModel : ObservableObject
     private readonly Dictionary<LineupPhase, ObservableCollection<LineupSlot>> _phaseSlots = [];
     private readonly LineupPhase _initialPhase;
     private readonly List<LineupStrategySlot> _initialStrategies;
+    private readonly bool _initialUpgradeReminderEnabled;
+    private readonly int?[] _initialUpgradeRounds = new int?[UpgradeSchedule.LevelCount];
 
     public ObservableCollection<LineupStrategySlot> StrategySlots { get; } = [];
 
@@ -49,6 +51,28 @@ public partial class LineupEditorViewModel : ObservableObject
     [ObservableProperty]
     private int _filledSlotCount;
 
+    /// <summary>是否开启升本回合提醒（只在阵容被追踪时生效）。</summary>
+    [ObservableProperty]
+    private bool _upgradeReminderEnabled = true;
+
+    [ObservableProperty]
+    private int? _upgradeRound1;
+
+    [ObservableProperty]
+    private int? _upgradeRound2;
+
+    [ObservableProperty]
+    private int? _upgradeRound3;
+
+    [ObservableProperty]
+    private int? _upgradeRound4;
+
+    [ObservableProperty]
+    private int? _upgradeRound5;
+
+    [ObservableProperty]
+    private int? _upgradeRound6;
+
     public LineupEditorViewModel(
         Lineup? source,
         IEnumerable<Operator> operators,
@@ -62,6 +86,20 @@ public partial class LineupEditorViewModel : ObservableObject
         LineupId = source?.Id ?? Guid.NewGuid().ToString("N");
         if (!string.IsNullOrWhiteSpace(source?.Name))
             _name = source!.Name;
+
+        if (source is not null)
+        {
+            _upgradeReminderEnabled = source.UpgradeReminderEnabled;
+            var rounds = UpgradeSchedule.FromArray(source.UpgradeRounds).ToArray();
+            _upgradeRound1 = rounds[0];
+            _upgradeRound2 = rounds[1];
+            _upgradeRound3 = rounds[2];
+            _upgradeRound4 = rounds[3];
+            _upgradeRound5 = rounds[4];
+            _upgradeRound6 = rounds[5];
+        }
+        _initialUpgradeReminderEnabled = _upgradeReminderEnabled;
+        Array.Copy(UpgradeRoundArray, _initialUpgradeRounds, UpgradeSchedule.LevelCount);
 
         foreach (var phase in Enum.GetValues<LineupPhase>())
         {
@@ -158,6 +196,13 @@ public partial class LineupEditorViewModel : ObservableObject
     public void Reset()
     {
         Name = _initialName;
+        UpgradeReminderEnabled = _initialUpgradeReminderEnabled;
+        UpgradeRound1 = _initialUpgradeRounds[0];
+        UpgradeRound2 = _initialUpgradeRounds[1];
+        UpgradeRound3 = _initialUpgradeRounds[2];
+        UpgradeRound4 = _initialUpgradeRounds[3];
+        UpgradeRound5 = _initialUpgradeRounds[4];
+        UpgradeRound6 = _initialUpgradeRounds[5];
         StrategySlots.Clear();
         foreach (var slot in _initialStrategies)
             StrategySlots.Add(new LineupStrategySlot { StrategyId = slot.StrategyId, Tags = [.. slot.Tags] });
@@ -232,18 +277,30 @@ public partial class LineupEditorViewModel : ObservableObject
         FilledSlotCount = Slots.Count(s => !string.IsNullOrEmpty(s.OperatorName));
     }
 
-    public Lineup ToLineup() => new()
+    /// <summary>六个输入框当前的值，按「1 本 … 6 本」排列。</summary>
+    public int?[] UpgradeRoundArray =>
+        [UpgradeRound1, UpgradeRound2, UpgradeRound3, UpgradeRound4, UpgradeRound5, UpgradeRound6];
+
+    public Lineup ToLineup()
     {
-        Id = LineupId,
-        Name = string.IsNullOrWhiteSpace(Name) ? "未命名阵容" : Name.Trim(),
-        Slots = ExportPhase(LineupPhase.后期),
-        EarlySlots = ExportPhase(LineupPhase.前期),
-        MidSlots = ExportPhase(LineupPhase.中期),
-        SupportSlots = ExportPhase(LineupPhase.挂件),
-        Strategies = [.. StrategySlots.Where(s => s.StrategyId.Length > 0)
-            .Select(s => new LineupStrategySlot { StrategyId = s.StrategyId, Tags = [.. s.Tags] })],
-        UpdatedAt = DateTime.UtcNow,
-    };
+        return new Lineup
+        {
+            Id = LineupId,
+            Name = string.IsNullOrWhiteSpace(Name) ? "未命名阵容" : Name.Trim(),
+            Slots = ExportPhase(LineupPhase.后期),
+            EarlySlots = ExportPhase(LineupPhase.前期),
+            MidSlots = ExportPhase(LineupPhase.中期),
+            SupportSlots = ExportPhase(LineupPhase.挂件),
+            Strategies = [.. StrategySlots.Where(s => s.StrategyId.Length > 0)
+                .Select(s => new LineupStrategySlot { StrategyId = s.StrategyId, Tags = [.. s.Tags] })],
+            UpgradeReminderEnabled = UpgradeReminderEnabled,
+            UpgradeRounds = UpgradeSchedule.FromArray(UpgradeRoundArray).ToArray(),
+            UpdatedAt = DateTime.UtcNow,
+        };
+    }
+
+    /// <summary>当前输入框对应的合法计划（越界值被丢弃）。</summary>
+    public UpgradeSchedule NormalizedSchedule => UpgradeSchedule.FromArray(UpgradeRoundArray);
 
     private List<LineupSlot> ExportPhase(LineupPhase phase) => [.. _phaseSlots[phase]
         .Where(s => !string.IsNullOrEmpty(s.OperatorName)).Select(CloneSlot)];

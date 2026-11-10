@@ -10,6 +10,9 @@ public partial class GameStateViewModel : ObservableObject
     private int _currentRound;
 
     [ObservableProperty]
+    private bool _upgradeMaxed;
+
+    [ObservableProperty]
     private int _gold;
 
     [ObservableProperty]
@@ -24,9 +27,24 @@ public partial class GameStateViewModel : ObservableObject
     [ObservableProperty]
     private ObservableCollection<string> _trackingAlerts = [];
 
+    /// <summary>追踪页显示的回合文案；未识别时给出可读提示而不是 0。</summary>
+    public string RoundDisplay => CurrentRound > 0 ? $"第 {CurrentRound} 回合" : "未识别";
+
+    /// <summary>升本按钮状态：已满级 / 可升级 / 未识别。</summary>
+    public string UpgradeStateDisplay => UpgradeMaxed ? "已满级" : CurrentRound > 0 ? "可升级" : "未识别";
+
+    partial void OnCurrentRoundChanged(int value)
+    {
+        OnPropertyChanged(nameof(RoundDisplay));
+        OnPropertyChanged(nameof(UpgradeStateDisplay));
+    }
+
+    partial void OnUpgradeMaxedChanged(bool value) => OnPropertyChanged(nameof(UpgradeStateDisplay));
+
     public void UpdateFromGameState(Core.GameState.GameState state)
     {
         CurrentRound = state.CurrentRound;
+        UpgradeMaxed = state.UpgradeMaxed;
         Gold = state.Gold;
 
         FieldOperatorSummary = new ObservableCollection<string>(
