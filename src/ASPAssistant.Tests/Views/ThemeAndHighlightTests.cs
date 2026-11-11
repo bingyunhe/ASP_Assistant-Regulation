@@ -1119,6 +1119,28 @@ public class ThemeAndHighlightTests
                             cancelTransform.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                             editorVm.ToLineup().Slots.Single().Equipments.Should().BeEmpty();
                             editorVm.ActiveStats.Should().NotContain(s => s.Name == "炎");
+                            // 复制上一阶段：前期不显示按钮，中期复制前期，后期按钮指向中期。
+                            var copyButton = (Button)editor.FindName("CopyPhaseButton");
+                            ((Button)phaseTabs.Children[0]).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                            copyButton.Visibility.Should().Be(Visibility.Collapsed);
+                            editorVm.SetSlotOperator(0, "角峰");
+                            ((Button)phaseTabs.Children[1]).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                            copyButton.Visibility.Should().Be(Visibility.Visible);
+                            copyButton.Content.Should().Be("复制前期");
+                            copyButton.IsEnabled.Should().BeTrue();
+                            copyButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                            editorVm.Slots[0].OperatorName.Should().Be("角峰");
+                            editorContent.Measure(new Size(980, 660));
+                            editorContent.Arrange(new Rect(0, 0, 980, 660));
+                            editorContent.UpdateLayout();
+                            Descendants<TextBlock>((Border)slots.Items[0]).Should().Contain(t => t.Text == "角峰");
+                            Save(editorContent, Path.Combine(output, isLight ? "light-editor-copy-phase.png" : "dark-editor-copy-phase.png"));
+                            ((Button)phaseTabs.Children[2]).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                            copyButton.Visibility.Should().Be(Visibility.Visible);
+                            copyButton.Content.Should().Be("复制中期");
+
+                            // 上游 v1.6.0：暴躁铁皮 6 装备 / 5 转职 + 精锐启用。
+                            editorVm.SelectPhase(LineupPhase.后期);
                             editorVm.SetStrategy(0, "band_mech");
                             editorVm.SetSlotOperator(0, LineupEquipmentService.MechName);
                             ((Button)phaseTabs.Children[2]).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
