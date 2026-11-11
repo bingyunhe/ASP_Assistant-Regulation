@@ -617,7 +617,7 @@ public partial class LineupEditorWindow : Window
         CovenantStatsList.ItemsSource = null;
         CovenantStatsList.ItemsSource = _vm.ActiveStats;
         EditorHint.Text = _vm.ValidationError.Length > 0 ? _vm.ValidationError :
-            $"正在编辑：{(_editingStrategies ? "策略" : _vm.CurrentPhase.ToString())} · 列表预览与追踪使用后期阵容";
+            $"正在编辑：{(_editingStrategies ? "策略" : _vm.CurrentPhase.ToString())} · 列表预览使用后期阵容，追踪合并四阶段";
         EditorHint.ToolTip = _vm.ValidationError.Length > 0 ? _vm.ValidationError : null;
         EditorHint.SetResourceReference(TextBlock.ForegroundProperty, _vm.ValidationError.Length > 0 ? "DangerBrush" : "TextSecondaryBrush");
     }

@@ -35,6 +35,33 @@
     <Grid>
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="8,10,8,8">
+                <!-- Phase switch for the saved lineup currently driving the tracking list -->
+                <Border x:Name="LineupSourcePanel" Visibility="Collapsed" Margin="0,0,0,10"
+                        Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1" CornerRadius="8" Padding="8,6"
+                        ToolTip="默认合并四个阶段；切换时期只替换这套阵容加入的追踪干员和装备，其他追踪目标保持不变。">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="追踪阵容" FontSize="10" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextSecondaryBrush}" />
+                            <TextBlock x:Name="LineupSourceName" FontSize="12" FontWeight="SemiBold" Margin="6,0,0,0"
+                                       TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimaryBrush}" />
+                        </StackPanel>
+                        <UniformGrid Columns="4" Margin="0,6,0,0">
+                            <Button x:Name="EarlyPhaseButton" Content="前期" CommandParameter="前期"
+                                    Style="{StaticResource TrackingButton}" Margin="0,0,4,0" Click="OnTrackedPhaseClick" />
+                            <Button x:Name="MidPhaseButton" Content="中期" CommandParameter="中期"
+                                    Style="{StaticResource TrackingButton}" Margin="0,0,4,0" Click="OnTrackedPhaseClick" />
+                            <Button x:Name="LatePhaseButton" Content="后期" CommandParameter="后期"
+                                    Style="{StaticResource TrackingButton}" Margin="0,0,4,0" Click="OnTrackedPhaseClick" />
+                            <Button x:Name="AllPhasesButton" Content="全部" CommandParameter="全部"
+                                    Style="{StaticResource TrackingButton}" Click="OnTrackedPhaseClick" />
+                        </UniformGrid>
+                        <TextBlock x:Name="EmptyPhaseHint" Text="这个时期还没有选择干员。" FontSize="10" Margin="2,4,0,0"
+                                   Foreground="{DynamicResource TextSecondaryBrush}" Visibility="Collapsed" />
+                    </StackPanel>
+                </Border>
+
                 <!-- Summary -->
                 <DockPanel Margin="2,0,0,4">
                     <Button DockPanel.Dock="Right" x:Name="ClearAllButton" Content="全部清除" Tag="danger"

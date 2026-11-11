@@ -60,12 +60,44 @@ public partial class TrackingView : UserControl
         _vm = vm;
         if (_vm is not null) _vm.PropertyChanged += OnVmPropertyChanged;
         HookCollections();
+        RefreshLineupSourcePanel();
     }
 
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(TrackingViewModel.TrackedOperators) or nameof(TrackingViewModel.TrackedEquipment))
             HookCollections();
+        if (e.PropertyName is nameof(TrackingViewModel.SourceLineup) or nameof(TrackingViewModel.SourcePhase))
+            RefreshLineupSourcePanel();
+    }
+
+    /// <summary>Shows the saved lineup behind the tracking list and highlights its active phase.</summary>
+    private void RefreshLineupSourcePanel()
+    {
+        var vm = _vm;
+        LineupSourcePanel.Visibility = vm?.HasSourceLineup == true ? Visibility.Visible : Visibility.Collapsed;
+        if (vm?.SourceLineup is null) return;
+
+        LineupSourceName.Text = vm.SourceLineupName;
+        EarlyPhaseButton.Tag = vm.SourcePhase == LineupPhase.前期 ? "tracked" : null;
+        MidPhaseButton.Tag = vm.SourcePhase == LineupPhase.中期 ? "tracked" : null;
+        LatePhaseButton.Tag = vm.SourcePhase == LineupPhase.后期 ? "tracked" : null;
+        AllPhasesButton.Tag = vm.SourcePhase is null ? "tracked" : null;
+        EmptyPhaseHint.Visibility = vm.SourcePhaseOperatorCount == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void OnTrackedPhaseClick(object sender, RoutedEventArgs e)
+    {
+        if (_vm is null || sender is not Button { CommandParameter: string phaseName })
+            return;
+        if (phaseName == "全部")
+        {
+            _vm.SelectAllTrackedPhases();
+            return;
+        }
+        if (!Enum.TryParse<LineupPhase>(phaseName, out var phase))
+            return;
+        _vm.SelectTrackedLineupPhase(phase);
     }
 
     private void HookCollections()

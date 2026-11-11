@@ -257,6 +257,99 @@ public class TrackingViewModelTests
     }
 
     [Fact]
+    public void TrackSavedLineupDefaultsToMergedPhasesAndPhaseSwitchNarrows()
+    {
+        var vm = new TrackingViewModel { TrackMultipleLineups = true };
+        vm.AddTracking("常驻干员", TrackingType.Operator);
+        var lineup = new Lineup
+        {
+            Name = "阶段阵容",
+            EarlySlots = [new() { OperatorName = "前期干员", Equipments = ["前期装备"] }],
+            MidSlots = [new() { OperatorName = "中期干员", Equipments = ["中期装备"] }],
+            Slots = [new() { OperatorName = "后期干员", Equipments = ["后期装备"] }],
+        };
+
+        vm.TrackSavedLineup(lineup).Should().Be((3, 3));
+        vm.HasSourceLineup.Should().BeTrue();
+        vm.SourceLineupName.Should().Be("阶段阵容");
+        vm.SourcePhase.Should().BeNull("the default view merges all four phases");
+        vm.SourcePhaseOperatorCount.Should().Be(3);
+        vm.TrackedOperators.Select(e => e.Name).Should().Contain(["常驻干员", "后期干员", "中期干员", "前期干员"]);
+        vm.TrackedEquipment.Select(e => e.Name).Should().Contain(["后期装备", "中期装备", "前期装备"]);
+
+        vm.SelectTrackedLineupPhase(LineupPhase.前期).Should().Be((0, 0));
+        vm.SourcePhase.Should().Be(LineupPhase.前期);
+        vm.SourcePhaseOperatorCount.Should().Be(1);
+        vm.TrackedOperators.Select(e => e.Name).Should().Contain(["常驻干员", "前期干员"]);
+        vm.TrackedOperators.Select(e => e.Name).Should().NotContain(["后期干员", "中期干员"]);
+        vm.TrackedEquipment.Select(e => e.Name).Should().Contain("前期装备");
+        vm.TrackedEquipment.Select(e => e.Name).Should().NotContain(["后期装备", "中期装备"]);
+
+        vm.SelectTrackedLineupPhase(LineupPhase.前期);
+        vm.SourcePhase.Should().BeNull("clicking the active phase returns to the merged view");
+        vm.SourcePhaseOperatorCount.Should().Be(3);
+
+        vm.SelectTrackedLineupPhase(LineupPhase.中期);
+        vm.SelectAllTrackedPhases();
+        vm.SourcePhase.Should().BeNull();
+        vm.TrackedOperators.Select(e => e.Name).Should().Contain(["前期干员", "中期干员", "后期干员"]);
+
+        vm.TrackSavedLineup(lineup);
+        vm.SourcePhase.Should().BeNull("re-tracking the same lineup keeps the merged view");
+    }
+
+    [Fact]
+    public void PhaseSwitchKeepsSharedOperatorsAndOtherTrackingResetsTheSource()
+    {
+        var vm = new TrackingViewModel();
+        vm.AddTracking("旧目标", TrackingType.Operator);
+        var lineup = new Lineup
+        {
+            EarlySlots = [new() { OperatorName = "角峰" }, new() { OperatorName = "隐现" }],
+            Slots = [new() { OperatorName = "角峰" }],
+        };
+
+        vm.TrackSavedLineup(lineup);
+        vm.TrackedOperators.Select(e => e.Name).Should().BeEquivalentTo("角峰", "隐现");
+        vm.SelectTrackedLineupPhase(LineupPhase.前期);
+        vm.TrackedOperators.Select(e => e.Name).Should().BeEquivalentTo("角峰", "隐现");
+        vm.SelectTrackedLineupPhase(LineupPhase.后期);
+        vm.TrackedOperators.Select(e => e.Name).Should().Equal("角峰");
+
+        vm.TrackLineup(new Lineup { Slots = [new() { OperatorName = "其他队伍" }] });
+        vm.HasSourceLineup.Should().BeFalse("tracking a planner result clears the saved-lineup source");
+        vm.TrackedOperators.Select(e => e.Name).Should().Equal("其他队伍");
+
+        vm.TrackSavedLineup(lineup);
+        vm.ClearAllTracking();
+        vm.HasSourceLineup.Should().BeFalse();
+        vm.AllEntries.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void TrackSavedLineupUsesUnifiedEquipmentModelAcrossPhases()
+    {
+        var vm = new TrackingViewModel { TrackMultipleLineups = true };
+        var lineup = new Lineup
+        {
+            Name = "装备阶段",
+            EarlySlots = [new() { OperatorName = "前期干员", Equipments = ["变形同构体", "炎国短刀"] }],
+            Slots = [new() { OperatorName = "后期干员", Equipments = ["变形同构体", "维式重锤"] }],
+        };
+
+        vm.TrackSavedLineup(lineup);
+        vm.TrackedOperators.Select(e => e.Name).Should().Contain(["前期干员", "后期干员"]);
+        vm.TrackedEquipment.Select(e => e.Name).Should().BeEquivalentTo("变形同构体", "炎国短刀", "维式重锤");
+
+        vm.SelectTrackedLineupPhase(LineupPhase.前期);
+        vm.TrackedEquipment.Select(e => e.Name).Should().BeEquivalentTo("变形同构体", "炎国短刀");
+        vm.TrackedEquipment.Select(e => e.Name).Should().NotContain("维式重锤");
+
+        vm.SelectAllTrackedPhases();
+        vm.TrackedEquipment.Select(e => e.Name).Should().BeEquivalentTo("变形同构体", "炎国短刀", "维式重锤");
+    }
+
+    [Fact]
     public void ClearAllTracking_RemovesBothTypesAndKeepsMultipleMode()
     {
         var vm = new TrackingViewModel { TrackMultipleLineups = true };
