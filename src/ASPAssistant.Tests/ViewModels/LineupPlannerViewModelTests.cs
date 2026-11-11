@@ -1,3 +1,4 @@
+using ASPAssistant.Core.Data;
 using ASPAssistant.Core.Models;
 using ASPAssistant.Core.Services;
 using ASPAssistant.Core.ViewModels;
@@ -226,5 +227,161 @@ public class LineupPlannerViewModelTests
         ops.Where(o => o.IsFree).Should().OnlyContain(o => !o.HasDetails);
         ops.Single(o => o.Name == "维3").ExtraInfo.Should().Contain("必带");
         vm.LockedOperators.Single().Operator.Name.Should().Be("维3");
+    }
+
+    [Fact]
+    public void SavedLineupsOnlyMatchWhenEveryActivatedCovenantSurvivesTheBans()
+    {
+        var (vm, bans, lineups) = CreateSaved();
+        lineups.LoadLineups([
+            Saved("双盟约队", "炎1", "炎2", "炎3", "独1", "独2"),
+            Saved("纯炎队", "炎1", "炎2", "炎3"),
+        ]);
+
+        vm.HasRunInfo.Should().BeFalse();
+        vm.MatchingLineups.Should().BeEmpty("the board waits for the run's ban information");
+
+        vm.SetAvailableCovenants(["炎", "维多利亚", "突袭"]);
+        vm.MatchingLineups.Select(l => l.Name).Should().BeEquivalentTo("双盟约队", "纯炎队");
+        vm.MatchingLineupSummary.Should().Be("符合 2 / 2");
+
+        var both = vm.MatchingLineups.Single(l => l.Name == "双盟约队");
+        both.Operators.Should().HaveCount(5);
+        both.Covenants.Select(c => c.Text).Should().BeEquivalentTo("炎 3/3", "突袭 2/2");
+        both.Summary.Should().Contain("5 人").And.Contain("2 个盟约");
+        both.Source.Name.Should().Be("双盟约队");
+
+        // 维多利亚 is present in the team but not activated by the late-phase team, so it does not exclude it.
+        bans.SetCovenantBans(["维多利亚"]);
+        vm.MatchingLineups.Select(l => l.Name).Should().BeEquivalentTo("双盟约队", "纯炎队");
+
+        // 突袭 is activated by the first team only.
+        bans.SetCovenantBans(["突袭"]);
+        vm.MatchingLineups.Select(l => l.Name).Should().Equal("纯炎队");
+        vm.MatchingLineupSummary.Should().Be("符合 1 / 2");
+
+        bans.SetCovenantBans(["炎"]);
+        vm.MatchingLineups.Should().BeEmpty();
+        vm.HasMatchingLineups.Should().BeFalse();
+        vm.MatchingLineupHint.Should().Contain("没有完全符合");
+    }
+
+    [Fact]
+    public void SavedLineupBoardShowsTransformationsFromEquipment()
+    {
+        var (vm, _, lineups) = CreateSaved();
+        var lineup = Saved("转职队", "炎1", "炎2", "炎3");
+        lineup.Slots[0].Equipments = ["变形同构体", "炎国短刀"];
+        lineups.LoadLineups([lineup]);
+        vm.SetAvailableCovenants(["炎", "维多利亚", "突袭"]);
+
+        var item = vm.MatchingLineups.Single();
+        var transformed = item.Operators.Single(o => o.Name == "炎1");
+        transformed.Sub.Should().Be("转→炎", "v1.6.0 keeps transformations in Equipments, not TransformedCovenant");
+        transformed.ToolTip.Should().Contain("转职 → 炎");
+        item.Operators.Single(o => o.Name == "炎2").Sub.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void MatchingLineupsFollowSavedLineupChangesAndSkipTeamsWithoutActivatedCovenants()
+    {
+        var (vm, _, lineups) = CreateSaved();
+        vm.SetAvailableCovenants(["炎", "维多利亚", "突袭"]);
+
+        lineups.LoadLineups([Saved("纯炎队", "炎1", "炎2", "炎3")]);
+        vm.MatchingLineups.Should().ContainSingle().Which.Name.Should().Be("纯炎队");
+
+        lineups.LoadLineups([Saved("未成队", "独1")]);
+        vm.MatchingLineups.Should().BeEmpty("a team without activated covenants is not a match");
+        vm.MatchingLineupHint.Should().Contain("还没有激活盟约");
+
+        lineups.LoadLineups([]);
+        vm.MatchingLineups.Should().BeEmpty();
+        vm.MatchingLineupHint.Should().Contain("还没有保存过阵容");
+    }
+
+    [Fact]
+    public void SelectingSavedLineupsTracksEveryChosenTeamInOneBatch()
+    {
+        var (vm, _, lineups) = CreateSaved();
+        vm.SetAvailableCovenants(["炎", "维多利亚", "突袭"]);
+        lineups.LoadLineups([
+            Saved("双盟约队", "炎1", "炎2", "炎3", "独1", "独2"),
+            Saved("纯炎队", "炎1", "炎2", "炎3"),
+        ]);
+
+        vm.SelectedMatchingLineupCount.Should().Be(0);
+        vm.HasSelectedMatchingLineups.Should().BeFalse();
+        vm.TrackSelectedText.Should().Be("追踪已选阵容");
+        vm.SelectAllMatchingText.Should().Be("全选");
+
+        vm.ToggleSelectAllMatchingCommand.Execute(null);
+        vm.SelectedMatchingLineupCount.Should().Be(2);
+        vm.HasSelectedMatchingLineups.Should().BeTrue();
+        vm.TrackSelectedText.Should().Be("追踪已选阵容 (2)");
+        vm.SelectAllMatchingText.Should().Be("取消全选");
+
+        IReadOnlyList<Lineup>? tracked = null;
+        vm.TrackSavedLineupsRequested += selected => tracked = selected;
+        vm.TrackSelectedSavedLineupsCommand.Execute(null);
+        tracked.Should().NotBeNull();
+        tracked!.Select(l => l.Name).Should().BeEquivalentTo("双盟约队", "纯炎队");
+
+        vm.MatchingLineups.Single(l => l.Name == "纯炎队").IsSelected = false;
+        vm.SelectedMatchingLineupCount.Should().Be(1);
+        vm.SelectAllMatchingText.Should().Be("全选");
+    }
+
+    [Fact]
+    public void SavedLineupSelectionSurvivesBanRefreshAndHiddenTeamsAreNotTracked()
+    {
+        var (vm, bans, lineups) = CreateSaved();
+        vm.SetAvailableCovenants(["炎", "维多利亚", "突袭"]);
+        lineups.LoadLineups([Saved("纯炎队", "炎1", "炎2", "炎3")]);
+        vm.MatchingLineups.Single().IsSelected = true;
+
+        bans.SetCovenantBans(["炎"]);
+        vm.MatchingLineups.Should().BeEmpty();
+        vm.SelectedMatchingLineupCount.Should().Be(0);
+        var tracked = new List<Lineup>();
+        vm.TrackSavedLineupsRequested += selected => tracked.AddRange(selected);
+        vm.TrackSelectedSavedLineupsCommand.Execute(null);
+        tracked.Should().BeEmpty("only visible selected lineups may be tracked");
+
+        bans.SetCovenantBans([]);
+        vm.MatchingLineups.Single().IsSelected.Should().BeTrue("the selection is kept by lineup id");
+        vm.SelectedMatchingLineupCount.Should().Be(1);
+    }
+
+    private static Lineup Saved(string name, params string[] operators) => new()
+    {
+        Name = name,
+        Slots = operators.Select(operatorName => new LineupSlot { OperatorName = operatorName }).ToList(),
+    };
+
+    private static (LineupPlannerViewModel Vm, BanViewModel Bans, LineupViewModel Lineups) CreateSaved()
+    {
+        var operators = new List<Operator>
+        {
+            Op("炎1", "炎"), Op("炎2", "炎"), Op("炎3", "炎"),
+            new() { Name = "独1", CoreCovenants = ["维多利亚"], AdditionalCovenants = ["突袭"] },
+            new() { Name = "独2", CoreCovenants = ["维多利亚"], AdditionalCovenants = ["突袭"] },
+        };
+        var covenants = new[]
+        {
+            new CovenantInfo { Name = "炎", BondType = "SEASON", ActivateCount = 3 },
+            new CovenantInfo { Name = "维多利亚", BondType = "SEASON", ActivateCount = 3 },
+            new CovenantInfo { Name = "突袭", BondType = "REGULAR", ActivateCount = 2 },
+        };
+        var bans = new BanViewModel();
+        var lineups = new LineupViewModel(
+            new LineupStore(Path.Combine(Path.GetTempPath(), $"planner_lineups_{Guid.NewGuid():N}"), EquipmentTestData.Rules),
+            new CovenantCalculator(operators, covenants,
+                new Dictionary<string, string>(EquipmentTestData.Rules.EquipmentToCovenant)));
+        var vm = new LineupPlannerViewModel(new LineupPlanner(operators, covenants), operators, bans, EquipmentTestData.Rules, lineups)
+        {
+            DebounceMilliseconds = 0,
+        };
+        return (vm, bans, lineups);
     }
 }

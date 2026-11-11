@@ -403,6 +403,77 @@
             </DataTemplate.Triggers>
         </DataTemplate>
 
+        <!-- Goal / covenant pill (result cards and saved-lineup board) -->
+        <DataTemplate x:Key="GoalPillTemplate" DataType="{x:Type vm:PlannerGoalPill}">
+            <Border x:Name="pill" CornerRadius="10" Padding="7,1" Margin="0,0,5,4" BorderThickness="1"
+                    Background="{DynamicResource SuccessTintBrush}" BorderBrush="{DynamicResource SuccessBorderBrush}">
+                <TextBlock x:Name="pillText" Text="{Binding Text}" FontSize="10" Foreground="{DynamicResource SuccessTextBrush}" />
+            </Border>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsManual}" Value="True">
+                    <Setter TargetName="pill" Property="Background" Value="{DynamicResource WarningTintBrush}" />
+                    <Setter TargetName="pill" Property="BorderBrush" Value="{DynamicResource WarningMutedBrush}" />
+                    <Setter TargetName="pillText" Property="Foreground" Value="{DynamicResource WarningTextBrush}" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+
+        <!-- Compact avatar on the saved-lineup board -->
+        <DataTemplate x:Key="SavedLineupOperatorTemplate" DataType="{x:Type vm:PlannerOperatorItem}">
+            <Border Width="30" Height="30" Margin="0,0,4,4" CornerRadius="5" ClipToBounds="True"
+                    Background="{DynamicResource SectionBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1" ToolTip="{Binding ToolTip}" ToolTipService.InitialShowDelay="250">
+                <Grid>
+                    <TextBlock Text="{Binding Initial}" FontSize="11" FontWeight="Bold"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                    <Image Source="{Binding IconPath, Converter={StaticResource PathToImage}}" Stretch="UniformToFill" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <!-- Saved lineup that survives every covenant ban of the current run; selectable for batch tracking -->
+        <DataTemplate x:Key="SavedLineupCardTemplate" DataType="{x:Type vm:PlannerSavedLineupItem}">
+            <Border CornerRadius="10" Padding="9,8" Margin="0,0,0,7"
+                    ToolTip="{Binding ToolTip}" ToolTipService.InitialShowDelay="400">
+                <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource ItemCardBorder}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <StackPanel>
+                    <DockPanel Margin="0,0,0,6">
+                        <Border DockPanel.Dock="Right" CornerRadius="8" Padding="7,1" VerticalAlignment="Center"
+                                Background="{DynamicResource SuccessTintBrush}" BorderBrush="{DynamicResource SuccessBorderBrush}"
+                                BorderThickness="1">
+                            <TextBlock Text="{Binding Summary}" FontSize="10" Foreground="{DynamicResource SuccessTextBrush}" />
+                        </Border>
+                        <CheckBox DockPanel.Dock="Left" IsChecked="{Binding IsSelected}" Focusable="False"
+                                  VerticalAlignment="Center" Margin="0,0,6,0"
+                                  ToolTip="选中后可一次性把整套阵容的干员和装备需求加入追踪" />
+                        <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="Bold" Margin="0,0,6,0"
+                                   TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextPrimaryBrush}" />
+                    </DockPanel>
+                    <ItemsControl ItemsSource="{Binding Operators}" ItemTemplate="{StaticResource SavedLineupOperatorTemplate}" Focusable="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                    <ItemsControl ItemsSource="{Binding Covenants}" ItemTemplate="{StaticResource GoalPillTemplate}"
+                                  Focusable="False" Margin="0,2,0,0">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </DataTemplate>
+
         <!-- Variant matrix cell -->
         <DataTemplate x:Key="VariantCellTemplate" DataType="{x:Type vm:PlannerVariantCell}">
             <Button Margin="0,0,4,4" Height="30" Cursor="Hand" ToolTip="{Binding ToolTip}"
@@ -445,7 +516,7 @@
                                 ToolTip="保存为阵容（可在阵容页编辑装备）"
                                 Command="{Binding DataContext.SaveLineupCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
                         <Button DockPanel.Dock="Right" Content="追踪" Style="{StaticResource PlannerGhostButton}" Margin="0,0,6,0"
-                                ToolTip="把这些干员加入追踪列表"
+                                ToolTip="把这些干员和装备需求加入追踪列表"
                                 Command="{Binding DataContext.TrackLineupCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" />
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="{Binding Title}" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
@@ -459,27 +530,12 @@
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                     </ItemsControl>
-                    <ItemsControl ItemsSource="{Binding Goals}" Focusable="False">
+                    <ItemsControl ItemsSource="{Binding Goals}" ItemTemplate="{StaticResource GoalPillTemplate}" Focusable="False">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <WrapPanel />
                             </ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate DataType="{x:Type vm:PlannerGoalPill}">
-                                <Border x:Name="pill" CornerRadius="10" Padding="7,1" Margin="0,0,5,4" BorderThickness="1"
-                                        Background="{DynamicResource SuccessTintBrush}" BorderBrush="{DynamicResource SuccessBorderBrush}">
-                                    <TextBlock x:Name="pillText" Text="{Binding Text}" FontSize="10" Foreground="{DynamicResource SuccessTextBrush}" />
-                                </Border>
-                                <DataTemplate.Triggers>
-                                    <DataTrigger Binding="{Binding IsManual}" Value="True">
-                                        <Setter TargetName="pill" Property="Background" Value="{DynamicResource WarningTintBrush}" />
-                                        <Setter TargetName="pill" Property="BorderBrush" Value="{DynamicResource WarningMutedBrush}" />
-                                        <Setter TargetName="pillText" Property="Foreground" Value="{DynamicResource WarningTextBrush}" />
-                                    </DataTrigger>
-                                </DataTemplate.Triggers>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
                     </ItemsControl>
                     <TextBlock Text="{Binding Note}" Style="{StaticResource PlannerHint}" Margin="0,2,0,0"
                                Visibility="{Binding HasNote, Converter={StaticResource BoolToVis}}" />
@@ -657,6 +713,28 @@
                     <Button HorizontalAlignment="Left" Content="＋ 从追踪导入" Style="{StaticResource PlannerGhostButton}"
                             Foreground="{DynamicResource AccentBrush}" BorderBrush="{DynamicResource AccentBorderBrush}"
                             Command="{Binding ImportTrackedCommand}" ToolTip="把追踪列表里的干员设为必带" />
+
+                    <!-- 已保存阵容中，后期激活盟约全部未被本局禁用的队伍 -->
+                    <DockPanel Margin="0,14,0,4">
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding MatchingLineupSummary}"
+                                   Style="{StaticResource PlannerHint}" VerticalAlignment="Center" TextWrapping="NoWrap" />
+                        <TextBlock Text="符合本局的阵容" Style="{StaticResource PlannerSectionTitle}" />
+                    </DockPanel>
+                    <TextBlock Text="按后期阵容判断：激活的盟约全部未被禁用才列出。"
+                               Style="{StaticResource PlannerHint}" Margin="0,0,0,6" />
+                    <DockPanel Margin="0,0,0,6" LastChildFill="False"
+                               Visibility="{Binding HasMatchingLineups, Converter={StaticResource BoolToVis}}">
+                        <Button DockPanel.Dock="Left" Content="{Binding SelectAllMatchingText}" Style="{StaticResource PlannerLinkButton}"
+                                Command="{Binding ToggleSelectAllMatchingCommand}" ToolTip="全选或取消全选当前列出的阵容" />
+                        <Button DockPanel.Dock="Right" Content="{Binding TrackSelectedText}" Style="{StaticResource PlannerPrimaryButton}"
+                                Height="24" Padding="9,0" Command="{Binding TrackSelectedSavedLineupsCommand}"
+                                IsEnabled="{Binding HasSelectedMatchingLineups}"
+                                ToolTip="把已选阵容的后期干员和装备需求一次性加入追踪列表" />
+                    </DockPanel>
+                    <TextBlock Text="{Binding MatchingLineupHint}" Style="{StaticResource PlannerHint}" Margin="0,2,0,6"
+                               Visibility="{Binding HasMatchingLineups, Converter={StaticResource InverseBoolToVis}}" />
+                    <ItemsControl ItemsSource="{Binding MatchingLineups}" ItemTemplate="{StaticResource SavedLineupCardTemplate}"
+                                  Focusable="False" Visibility="{Binding HasMatchingLineups, Converter={StaticResource BoolToVis}}" />
                 </StackPanel>
             </ScrollViewer>
 

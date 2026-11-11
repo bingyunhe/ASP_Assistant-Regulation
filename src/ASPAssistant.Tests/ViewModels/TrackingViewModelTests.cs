@@ -212,6 +212,51 @@ public class TrackingViewModelTests
     }
 
     [Fact]
+    public void TrackLineupsOperatorsMergesTeamsAndDerivesEquipment()
+    {
+        var vm = new TrackingViewModel { TrackMultipleLineups = true };
+        var added = vm.TrackLineupsOperators(
+        [
+            new Lineup { Slots = [new() { OperatorName = "角峰", Equipments = ["不屈弹射器"] }] },
+            new Lineup
+            {
+                Slots =
+                [
+                    new() { OperatorName = "角峰", Equipments = ["炎国短刀"] },
+                    new() { OperatorName = "隐现", Equipments = ["乌萨斯呼吸器"] }
+                ]
+            },
+        ]);
+
+        added.Should().Be(2);
+        vm.TrackedOperators.Select(e => e.Name).Should().Equal("角峰", "隐现");
+        vm.TrackedOperators.Single(e => e.Name == "角峰").Equipments.Should().Equal(["炎国短刀"],
+            "the latest planned equipment wins");
+        vm.TrackedEquipment.Select(e => e.Name).Should().BeEquivalentTo(["炎国短刀", "乌萨斯呼吸器"],
+            "v1.6.0 derives equipment rows from the tracked operators");
+        vm.TrackLineupsOperators([]).Should().Be(0);
+    }
+
+    [Fact]
+    public void TrackLineupsOperatorsDefaultModeReplacesExistingTargets()
+    {
+        var vm = new TrackingViewModel();
+        vm.AddTracking("旧干员", TrackingType.Operator);
+        vm.AddTracking("旧装备", TrackingType.Equipment);
+
+        var added = vm.TrackLineupsOperators(
+        [
+            new Lineup { Slots = [new() { OperatorName = "角峰" }] },
+            new Lineup { Slots = [new() { OperatorName = "隐现" }] },
+        ]);
+
+        vm.TrackMultipleLineups.Should().BeFalse();
+        added.Should().Be(2);
+        vm.TrackedOperators.Select(e => e.Name).Should().Equal("角峰", "隐现");
+        vm.TrackedEquipment.Should().BeEmpty();
+    }
+
+    [Fact]
     public void ClearAllTracking_RemovesBothTypesAndKeepsMultipleMode()
     {
         var vm = new TrackingViewModel { TrackMultipleLineups = true };

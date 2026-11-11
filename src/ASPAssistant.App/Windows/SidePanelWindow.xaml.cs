@@ -776,7 +776,7 @@ public partial class SidePanelWindow : Window
 
     private void WirePlannerView()
     {
-        PlannerVm = new LineupPlannerViewModel(_lineupPlanner, _allOperators, BanVm, LineupVm.Calculator.EquipmentRules)
+        PlannerVm = new LineupPlannerViewModel(_lineupPlanner, _allOperators, BanVm, LineupVm.Calculator.EquipmentRules, LineupVm)
         {
             TrackedOperatorsProvider = () => TrackingVm.TrackedOperators.Select(e => e.Name).ToList(),
             RunOnUiThread = action =>
@@ -804,6 +804,23 @@ public partial class SidePanelWindow : Window
             {
                 var added = TrackingVm.TrackLineup(lineup);
                 ShowToast($"已追踪规划阵容：新增 {added.Operators} 名干员");
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"追踪失败：{ex.Message}");
+            }
+        };
+        PlannerVm.TrackSavedLineupsRequested += lineups =>
+        {
+            try
+            {
+                var replace = !TrackingVm.TrackMultipleLineups;
+                var added = TrackingVm.TrackLineupsOperators(lineups);
+                ShowToast(added > 0
+                    ? replace
+                        ? $"已用所选阵容的 {added} 名干员替换追踪列表"
+                        : $"已追踪 {added} 名干员（来自 {lineups.Count} 套阵容）"
+                    : $"所选 {lineups.Count} 套阵容的干员已在追踪列表中");
             }
             catch (Exception ex)
             {

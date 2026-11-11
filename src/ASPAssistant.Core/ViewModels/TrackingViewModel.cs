@@ -40,16 +40,46 @@ public partial class TrackingViewModel : ObservableObject
                 var entry = new TrackingEntry
                 {
                     Name = slot.OperatorName, Type = TrackingType.Operator,
-                    TransformedCovenant = slot.TransformedCovenant, Equipments = [.. slot.Equipments], IsElite = slot.IsElite
+                    Equipments = [.. slot.Equipments], IsElite = slot.IsElite
                 };
                 if (existing is null) TrackedOperators.Add(entry);
-                else if (existing.TransformedCovenant != slot.TransformedCovenant || existing.IsElite != slot.IsElite
-                    || !existing.Equipments.SequenceEqual(slot.Equipments))
+                else if (existing.IsElite != slot.IsElite || !existing.Equipments.SequenceEqual(slot.Equipments))
                     TrackedOperators[TrackedOperators.IndexOf(existing)] = entry;
             }
         }
         RefreshEquipmentRequirements();
         return (TrackedOperators.Count(e => !previousOperators.Contains(e.Name)), TrackedEquipment.Count(e => !previousEquipment.Contains(e.Name)));
+    }
+
+    /// <summary>
+    /// Adds every late-phase operator of the given lineups in one batch, merging duplicates across teams.
+    /// Equipment rows are derived from the operators' equipment configuration, matching v1.6.0 tracking.
+    /// Returns the number of operators added to the tracking list.
+    /// </summary>
+    public int TrackLineupsOperators(IEnumerable<Lineup> lineups)
+    {
+        var batch = lineups as IReadOnlyCollection<Lineup> ?? lineups.ToList();
+        if (!TrackMultipleLineups) ClearAllTracking();
+        var previous = TrackedOperators.Count;
+        foreach (var lineup in batch)
+            foreach (var slot in lineup.Slots)
+                TrackSlotOperator(slot);
+        RefreshEquipmentRequirements();
+        return TrackedOperators.Count - previous;
+    }
+
+    private void TrackSlotOperator(LineupSlot slot)
+    {
+        if (string.IsNullOrEmpty(slot.OperatorName)) return;
+        var existing = TrackedOperators.FirstOrDefault(e => e.Name == slot.OperatorName);
+        var entry = new TrackingEntry
+        {
+            Name = slot.OperatorName, Type = TrackingType.Operator,
+            Equipments = [.. slot.Equipments], IsElite = slot.IsElite
+        };
+        if (existing is null) TrackedOperators.Add(entry);
+        else if (existing.IsElite != slot.IsElite || !existing.Equipments.SequenceEqual(slot.Equipments))
+            TrackedOperators[TrackedOperators.IndexOf(existing)] = entry;
     }
 
     public void AddTracking(string name, TrackingType type)

@@ -615,6 +615,64 @@ public class ThemeAndHighlightTests
                                 content.Measure(new Size(310, 900));
                                 content.Arrange(new Rect(0, 0, 310, 900));
                                 content.UpdateLayout();
+
+                                // 扫描本局信息后，“符合本局的阵容”只列出后期激活盟约全部未被禁用的已保存阵容。
+                                var targetCovenant = covenants
+                                    .Where(c => c.BondType == "SEASON" && c.ActivateCount is > 0)
+                                    .Select(c => (Covenant: c, Holders: operators
+                                        .Where(o => o.CoreCovenants.Contains(c.Name))
+                                        .Take(c.ActivateCount!.Value).ToList()))
+                                    .First(x => x.Holders.Count == x.Covenant.ActivateCount);
+                                var boardLineup = new Lineup
+                                {
+                                    Name = "本局符合阵容",
+                                    Slots = targetCovenant.Holders
+                                        .Select(o => new LineupSlot { OperatorName = o.Name }).ToList(),
+                                };
+                                lineupVm.LoadLineups([boardLineup]);
+                                var boardStats = lineupVm.Calculator.Compute(boardLineup);
+                                var unusedCovenant = covenants
+                                    .First(c => boardStats.All(s => s.Name != c.Name || !s.Activated)).Name;
+                                sidePanel.BanVm.SetCovenantBans([unusedCovenant]);
+                                sidePanel.PlannerVm.SetAvailableCovenants([targetCovenant.Covenant.Name]);
+                                sidePanel.PlannerVm.MatchingLineups.Should()
+                                    .ContainSingle(l => l.Name == "本局符合阵容")
+                                    .Which.Covenants.Should().Contain(c => c.Text.StartsWith(targetCovenant.Covenant.Name + " "));
+                                content.UpdateLayout();
+                                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                                var boardCheck = Descendants<CheckBox>(plannerView)
+                                    .Single(c => c.DataContext is PlannerSavedLineupItem);
+                                boardCheck.IsChecked = true;
+                                sidePanel.PlannerVm.SelectedMatchingLineupCount.Should().Be(1);
+                                var trackSelectedButton = Descendants<Button>(plannerView)
+                                    .Single(b => (b.Content as string ?? "").StartsWith("追踪已选阵容"));
+                                trackSelectedButton.IsEnabled.Should().BeTrue();
+                                var goalScroller = Descendants<ScrollViewer>(plannerView)
+                                    .First(s => s.Visibility == Visibility.Visible);
+                                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                                goalScroller.ScrollToEnd();
+                                content.UpdateLayout();
+                                Save(content, Path.Combine(output, isLight ? "light-planner-matching.png" : "dark-planner-matching.png"));
+
+                                trackSelectedButton.Command.Should().Be(sidePanel.PlannerVm.TrackSelectedSavedLineupsCommand);
+                                var previousTracked = trackingVm.AllEntries.ToList();
+                                var previousMultiple = trackingVm.TrackMultipleLineups;
+                                try
+                                {
+                                    trackSelectedButton.Command.Execute(trackSelectedButton.CommandParameter);
+                                    trackingVm.TrackedOperators.Select(e => e.Name).Should()
+                                        .Contain(targetCovenant.Holders.Select(o => o.Name),
+                                            "tracking the selected saved lineup must add all of its late-phase operators");
+                                }
+                                finally
+                                {
+                                    trackingVm.LoadEntries(previousTracked);
+                                    trackingVm.TrackMultipleLineups = previousMultiple;
+                                }
+
+                                sidePanel.BanVm.SetCovenantBans([targetCovenant.Covenant.Name]);
+                                sidePanel.PlannerVm.MatchingLineups.Should().BeEmpty(
+                                    "a banned activated covenant must remove the saved lineup from the board");
                             }
                             if (page is EnemyView enemyView)
                             {
