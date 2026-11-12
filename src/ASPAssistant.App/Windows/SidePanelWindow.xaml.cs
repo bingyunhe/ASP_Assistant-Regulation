@@ -1,4 +1,4 @@
-// Modified for ASP Assistant Regulation on 2026-11-11; see NOTICE.
+// Modified for ASP Assistant Regulation on 2026-11-13; see NOTICE.
 using System.IO;
 using System.Net.Http;
 using System.Windows;
@@ -175,6 +175,7 @@ public partial class SidePanelWindow : Window
         TrackingView.SetCovenantCalculator(lineupVm.Calculator);
         TrackingView.DataContext = trackingVm;
         EnemyView.DataContext = enemyVm;
+        RunBanView.DataContext = operatorVm;
         EnemyView.RecognitionRequested += () => EnemyRecognitionRequested?.Invoke();
         LineupView.DataContext = lineupVm;
         WireLineupView();
@@ -192,14 +193,14 @@ public partial class SidePanelWindow : Window
         TrackingView.ToggleAcquiredRequested += name => trackingVm.ToggleAcquired(name);
         TrackingView.ClearAllTrackingRequested += () => trackingVm.ClearAllTracking();
 
-        OperatorView.ClearBansRequested += () => banVm.ClearBans();
-        OperatorView.ClearRunRequested += () =>
+        RunBanView.ClearBansRequested += () => banVm.ClearBans();
+        RunBanView.ClearRunRequested += () =>
         {
             banVm.SetCovenantBans([]);
             operatorVm.ClearCovenantHighlights();
             PlannerVm.OnlyCurrentRun = false;
         };
-        OperatorView.ManualScanRequested += () => ManualScanRequested?.Invoke();
+        RunBanView.ManualScanRequested += () => ManualScanRequested?.Invoke();
         OperatorView.BanToggleRequested += (name, banned) => BanToggleRequested?.Invoke(name, banned);
 
         banVm.BansChanged += () =>
@@ -208,10 +209,11 @@ public partial class SidePanelWindow : Window
             {
                 OperatorView.RefreshBannedStates();
                 operatorVm.NotifyBansChanged();
-                OperatorView.SetBanSummary([.. banVm.BannedCovenants], banVm.BannedNames.Count);
+                UpdateBanSummary();
+                UpdateLineupRunInfo();
             });
         };
-        OperatorView.SetBanSummary([.. banVm.BannedCovenants], banVm.BannedNames.Count);
+        UpdateBanSummary();
 
         trackingVm.TrackedOperators.CollectionChanged += (_, _) =>
         {
@@ -261,8 +263,17 @@ public partial class SidePanelWindow : Window
         return IntPtr.Zero;
     }
 
+    /// <summary>对局信息 header: banned covenants, banned operators' portraits and the unusable count.</summary>
+    private void UpdateBanSummary()
+    {
+        var byName = _allOperators.GroupBy(o => o.Name).ToDictionary(g => g.Key, g => g.First());
+        var banned = BanVm.BannedNames.OrderBy(n => n, StringComparer.Ordinal)
+            .Select(n => byName.TryGetValue(n, out var op) ? op : new Operator { Name = n }).ToList();
+        RunBanView.SetBanSummary([.. BanVm.BannedCovenants], BanVm.BannedNames.Count, banned);
+    }
+
     public void UpdateManualScanStatus(int pending)
-        => OperatorView.UpdateManualScanStatus(pending);
+        => RunBanView.UpdateManualScanStatus(pending);
 
     /// <summary>Settings card: source in the title, live status below, icon tinted by state (PC grey, ADB green / red).</summary>
     public void UpdateGameConnectionStatus(bool isAdb, string status)
@@ -932,7 +943,56 @@ public partial class SidePanelWindow : Window
                 ShowToast($"追踪失败：{ex.Message}");
             }
         };
+        LineupView.RepairLineupRequested += rec =>
+        {
+            ShowLineupsSegment(planner: true);
+            PlannerVm.BeginRepair(rec.Lineup, LineupVm.TargetsOf(rec.Lineup), rec.Banned);
+        };
         WirePlannerView();
+        UpdateLineupRunInfo();
+    }
+
+    /// <summary>本局推荐 follows the opening bans: none recorded → no recommendations.</summary>
+    private void UpdateLineupRunInfo()
+    {
+        var bannedCovenants = BanVm.BannedCovenants;
+        if (BanVm.BannedNames.Count == 0 && bannedCovenants.Count == 0)
+        {
+            LineupVm.SetRunInfo(null, null);
+            return;
+        }
+        var byName = _allOperators.GroupBy(o => o.Name).ToDictionary(g => g.Key, g => g.First());
+        bool Unavailable(string name) => BanVm.IsBanned(name)
+            || (byName.TryGetValue(name, out var op) && CovenantBanRules.IsExcluded(op, bannedCovenants));
+        LineupVm.SetRunInfo(Unavailable, new HashSet<string>(bannedCovenants), [.. BanVm.BannedNames.OrderBy(n => n, StringComparer.Ordinal)]);
+    }
+
+    /// <summary>Opens the 阵容 tab on 我的阵容 (with 本局推荐 in view) or on 规划.</summary>
+    public void ShowLineupsSegment(bool planner)
+    {
+        MainTabs.SelectedItem = LineupsTab;
+        LineupsSegment.SelectedIndex = planner ? 1 : 0;
+        if (!planner) LineupView.ShowRecommendations();
+    }
+
+    private void OnCodexSegmentChanged(object sender, SelectionChangedEventArgs e)
+    {
+        e.Handled = true;
+        if (OperatorView is null || EquipmentView is null) return;
+        bool equipment = CodexSegment.SelectedIndex == 1;
+        OperatorView.Visibility = equipment ? Visibility.Collapsed : Visibility.Visible;
+        EquipmentView.Visibility = equipment ? Visibility.Visible : Visibility.Collapsed;
+        if (IsLoaded) PageTransition.SlideIn(equipment ? EquipmentView : OperatorView, fromY: 8);
+    }
+
+    private void OnLineupsSegmentChanged(object sender, SelectionChangedEventArgs e)
+    {
+        e.Handled = true;
+        if (LineupView is null || PlannerView is null) return;
+        bool planner = LineupsSegment.SelectedIndex == 1;
+        LineupView.Visibility = planner ? Visibility.Collapsed : Visibility.Visible;
+        PlannerView.Visibility = planner ? Visibility.Visible : Visibility.Collapsed;
+        if (IsLoaded) PageTransition.SlideIn(planner ? PlannerView : LineupView, fromY: 8);
     }
 
     private void WirePlannerView()
@@ -953,6 +1013,19 @@ public partial class SidePanelWindow : Window
                 await LineupVm.AddOrUpdateAsync(lineup);
                 LineupView.RefreshAllBadges();
                 ShowToast($"已保存阵容“{lineup.Name}”");
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"保存失败：{ex.Message}");
+            }
+        };
+        PlannerVm.OverwriteRequested += async lineup =>
+        {
+            try
+            {
+                await LineupVm.AddOrUpdateAsync(lineup);
+                LineupView.RefreshAllBadges();
+                ShowToast($"已更新阵容“{lineup.Name}”");
             }
             catch (Exception ex)
             {

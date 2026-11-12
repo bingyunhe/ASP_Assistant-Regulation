@@ -1,4 +1,4 @@
-// Modified for ASP Assistant Regulation on 2026-11-11; see NOTICE.
+// Modified for ASP Assistant Regulation on 2026-11-13; see NOTICE.
 using System.IO;
 using System.Windows;
 using ASPAssistant.App.Windows;
@@ -166,6 +166,7 @@ public partial class App : Application
 
         // Data layer
         var dataStore = new JsonDataStore(dataDir);
+        SearchMatch.LoadFile(Path.Combine(dataDir, "search_keys.json"));
         _settingsManager = new SettingsManager(settingsDir);
         var appearance = await _settingsManager.LoadSidebarAppearanceAsync();
         ThemeManager.Apply(appearance.Theme, appearance.IsNight(appearance.Theme));
@@ -293,6 +294,7 @@ public partial class App : Application
             getConnection: () => captureService.Connection)
         {
             TerminalReader = new TerminalLevelReader(ocrEngine),
+            EconomyReader = new ShopEconomyReader(ocrEngine),
             ThemeProvider = () => shopReader.Theme,
             BoardRecognizer = boardData is null ? null : new BoardRecognizer(boardData),
         };
@@ -596,6 +598,8 @@ public partial class App : Application
                 if (result.EnemyFaction is null)
                     enemyVm.RecognitionFailed("盟约已录入，本次敌人信息未完整读出，可在敌人页重试。");
                 sidePanel.ShowToast(result.EnemyFaction is null ? "盟约已录入，敌人信息可在敌人页重试" : "本局信息已录入");
+                // With saved lineups, the next thing to look at is which of them still work this run.
+                if (sidePanel.LineupVm.Lineups.Count > 0) sidePanel.ShowLineupsSegment(planner: false);
             });
         };
 
@@ -628,10 +632,16 @@ public partial class App : Application
         {
             // The opening info screen starts a new run: the previous run's terminal level no longer applies.
             _ocrScanner.ResetTerminalLevel();
+            _ocrScanner.ResetEconomy();
             Dispatcher.Invoke(() => { trackingVm.ResetTerminalLevel(); _sidePanel.PlannerVm.CurrentTerminalLevel = 0; });
             await _settingsManager!.SaveTerminalLevelAsync(0);
             await RecordInformationAsync();
         };
+        _ocrScanner.EconomyChanged += economy => Dispatcher.Invoke(() =>
+        {
+            trackingVm.Economy = economy;
+            if (economy?.Mode is { } mode) enemyVm.CurrentMode = mode;
+        });
         _ocrScanner.TerminalLevelChanged += level =>
         {
             Dispatcher.Invoke(() =>

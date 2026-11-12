@@ -1,4 +1,4 @@
-﻿// Modified for ASP Assistant Regulation on 2026-11-09; see NOTICE.
+﻿// Modified for ASP Assistant Regulation on 2026-11-13; see NOTICE.
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -69,6 +69,31 @@ public partial class EnemyViewModel : ObservableObject
     [ObservableProperty]
     private ObservableCollection<string> _bossAbilities = [];
 
+    /// <summary>单人：极速模拟与规程等级 1–20。</summary>
+    [ObservableProperty]
+    private ObservableCollection<BossHpCell> _bossHpSingle = [];
+
+    /// <summary>多人：标准 / 险境 / 绝境 / 终极模拟。</summary>
+    [ObservableProperty]
+    private ObservableCollection<BossHpCell> _bossHpMulti = [];
+
+    [ObservableProperty]
+    private bool _bossHasHiddenForm;
+
+    /// <summary>Mode name read from the shop HUD (规程等级 N / …模拟); highlights that HP cell.</summary>
+    [ObservableProperty]
+    private string? _currentMode;
+
+    partial void OnCurrentModeChanged(string? value) => MarkCurrentMode();
+
+    private void MarkCurrentMode()
+    {
+        foreach (var list in new[] { BossHpSingle, BossHpMulti })
+            for (int i = 0; i < list.Count; i++)
+                if (list[i].IsCurrent != (list[i].Name == CurrentMode))
+                    list[i] = list[i] with { IsCurrent = list[i].Name == CurrentMode };
+    }
+
     // ── Enemy type detail cards (populated from EnemyTypeDataService) ──────────
 
     /// <summary>
@@ -91,6 +116,9 @@ public partial class EnemyViewModel : ObservableObject
         BossDescription    = "";
         EnemyTypes.Clear();
         BossAbilities.Clear();
+        BossHpSingle.Clear();
+        BossHpMulti.Clear();
+        BossHasHiddenForm = false;
         EnemyTypeDetails.Clear();
         UnmatchedEntries.Clear();
         RawTexts.Clear();
@@ -139,6 +167,12 @@ public partial class EnemyViewModel : ObservableObject
         if (bossInfo is not null)
             foreach (var a in bossInfo.AbilityList)
                 BossAbilities.Add(a);
+        BossHpSingle.Clear();
+        BossHpMulti.Clear();
+        foreach (var level in bossInfo?.Hp ?? [])
+            (level.Group == "multi" ? BossHpMulti : BossHpSingle).Add(BossHpCell.From(level));
+        BossHasHiddenForm = bossInfo?.Hp.Any(l => l.HiddenHp is not null) == true;
+        MarkCurrentMode();
         AvatarPath = string.IsNullOrWhiteSpace(bossInfo?.IconPath)
             ? null
             : bossInfo!.IconPath.Trim();
@@ -193,4 +227,19 @@ public partial class EnemyViewModel : ObservableObject
         var full    = Path.Combine(AppContext.BaseDirectory, "data", trimmed);
         return File.Exists(full);
     }
+}
+
+/// <summary>One cell of the boss HP table.</summary>
+public sealed record BossHpCell(string Label, string Name, string Hp, string? HiddenHp, bool IsCurrent = false)
+{
+    public static BossHpCell From(BossHpLevel level) => new(ShortLabel(level.Name), level.Name,
+        FormatHp(level.Hp), level.HiddenHp is { } hidden ? FormatHp(hidden) : null);
+
+    /// <summary>规程等级12 → 12；极速模拟 → 极速；绝境模拟 → 绝境.</summary>
+    public static string ShortLabel(string name) => name.StartsWith("规程等级") ? name["规程等级".Length..]
+        : name.EndsWith("模拟") ? name[..^2] : name;
+
+    /// <summary>283680 → 28.4 万；1182000 → 118 万.</summary>
+    public static string FormatHp(long hp) => hp < 10_000 ? hp.ToString()
+        : hp < 1_000_000 ? $"{hp / 10_000.0:0.#} 万" : $"{hp / 10_000.0:0} 万";
 }

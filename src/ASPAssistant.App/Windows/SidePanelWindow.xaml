@@ -1,4 +1,4 @@
-<!-- Modified for ASP Assistant Arknights on 2026-11-12; see NOTICE. -->
+<!-- Modified for ASP Assistant Arknights on 2026-11-13; see NOTICE. -->
 <Window x:Class="ASPAssistant.App.Windows.SidePanelWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -165,23 +165,65 @@
             <!-- Tab content + visible resize grip overlay -->
             <Grid>
                 <TabControl x:Name="MainTabs" Style="{StaticResource DarkTabControl}" SelectionChanged="OnMainTabChanged">
-                    <TabItem Header="干员" Tag="{StaticResource IconOperators}" HorizontalContentAlignment="Stretch">
-                        <views:OperatorBrowseView x:Name="OperatorView" />
-                    </TabItem>
-                    <TabItem Header="装备" Tag="{StaticResource IconEquipment}">
-                        <views:EquipmentBrowseView x:Name="EquipmentView" />
+                    <!-- 图鉴: operators and equipment behind one segment -->
+                    <TabItem x:Name="CodexTab" Header="图鉴" Tag="{StaticResource IconCodex}" HorizontalContentAlignment="Stretch">
+                        <DockPanel Background="{DynamicResource PanelBackgroundBrush}">
+                            <Border DockPanel.Dock="Top" Padding="10,10,10,0">
+                                <ListBox x:Name="CodexSegment" Style="{StaticResource SegmentedListBox}" HorizontalAlignment="Stretch"
+                                         SelectedIndex="0" SelectionChanged="OnCodexSegmentChanged">
+                                    <ListBox.ItemsPanel>
+                                        <ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate>
+                                    </ListBox.ItemsPanel>
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource SegmentedItem}">
+                                            <Setter Property="MinHeight" Value="26" />
+                                            <Setter Property="FontSize" Value="12" />
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBoxItem Content="干员" />
+                                    <ListBoxItem Content="装备" />
+                                </ListBox>
+                            </Border>
+                            <Grid>
+                                <views:OperatorBrowseView x:Name="OperatorView" />
+                                <views:EquipmentBrowseView x:Name="EquipmentView" Visibility="Collapsed" />
+                            </Grid>
+                        </DockPanel>
                     </TabItem>
                     <TabItem Header="追踪" Tag="{StaticResource IconTracking}">
                         <views:TrackingView x:Name="TrackingView" />
                     </TabItem>
-                    <TabItem Header="阵容" Tag="{StaticResource IconLineups}">
-                        <views:LineupListView x:Name="LineupView" />
+                    <!-- 阵容: saved lineups (search / 筛选 / 本局推荐) and the planner behind one segment -->
+                    <TabItem x:Name="LineupsTab" Header="阵容" Tag="{StaticResource IconLineups}">
+                        <DockPanel Background="{DynamicResource PanelBackgroundBrush}">
+                            <Border DockPanel.Dock="Top" Padding="10,10,10,0">
+                                <ListBox x:Name="LineupsSegment" Style="{StaticResource SegmentedListBox}" HorizontalAlignment="Stretch"
+                                         SelectedIndex="0" SelectionChanged="OnLineupsSegmentChanged">
+                                    <ListBox.ItemsPanel>
+                                        <ItemsPanelTemplate><UniformGrid Rows="1" /></ItemsPanelTemplate>
+                                    </ListBox.ItemsPanel>
+                                    <!-- same size as 追踪's 购买清单 / 站位 -->
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem" BasedOn="{StaticResource SegmentedItem}">
+                                            <Setter Property="MinHeight" Value="26" />
+                                            <Setter Property="FontSize" Value="12" />
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+                                    <ListBoxItem Content="我的阵容" />
+                                    <ListBoxItem Content="规划" />
+                                </ListBox>
+                            </Border>
+                            <Grid>
+                                <views:LineupListView x:Name="LineupView" />
+                                <views:LineupPlannerView x:Name="PlannerView" Visibility="Collapsed" />
+                            </Grid>
+                        </DockPanel>
                     </TabItem>
-                    <TabItem Header="规划" Tag="{StaticResource IconPlanner}">
-                        <views:LineupPlannerView x:Name="PlannerView" />
-                    </TabItem>
-                    <TabItem Header="敌人" Tag="{StaticResource IconEnemy}">
-                        <views:EnemyView x:Name="EnemyView" />
+                    <TabItem x:Name="RunInfoTab" Header="对局信息" Tag="{StaticResource IconEnemy}">
+                        <DockPanel>
+                            <views:RunBanView x:Name="RunBanView" DockPanel.Dock="Top" Margin="10,10,10,0" />
+                            <views:EnemyView x:Name="EnemyView" />
+                        </DockPanel>
                     </TabItem>
                 </TabControl>
 
