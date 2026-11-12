@@ -12,6 +12,25 @@ namespace ASPAssistant.App;
 
 public partial class App : Application
 {
+    /// <summary>
+    /// UI text font for every window, tooltip and menu: Noto Sans SC (bundled, subset to GB2312 plus the app's own
+    /// text, SIL OFL), falling back to the system fonts for anything outside the subset. Number fonts stay per theme.
+    /// </summary>
+    static App()
+    {
+        var ui = new System.Windows.Media.FontFamily(
+            "pack://application:,,,/ASPAssistant.App;component/Resources/Fonts/#Noto Sans SC, Microsoft YaHei UI, Segoe UI");
+        foreach (var type in new[] { typeof(Window), typeof(System.Windows.Controls.ToolTip), typeof(System.Windows.Controls.ContextMenu) })
+        {
+            try
+            {
+                System.Windows.Documents.TextElement.FontFamilyProperty.OverrideMetadata(type,
+                    new FrameworkPropertyMetadata(ui, FrameworkPropertyMetadataOptions.Inherits));
+            }
+            catch (ArgumentException) { /* this type already overrides it; keep the system font there */ }
+        }
+    }
+
     private WindowTrackerService? _windowTracker;
     private OcrScannerService? _ocrScanner;
     private BanScreenAnalyzer? _banScreenAnalyzer;
@@ -86,6 +105,8 @@ public partial class App : Application
 
     protected override async void OnStartup(StartupEventArgs e)
     {
+        ASPAssistant.App.Windows.SystemBorder.RegisterForAllWindows();
+        ASPAssistant.App.Controls.PanelToolTip.RegisterForAllElements();
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
         try
@@ -146,7 +167,8 @@ public partial class App : Application
         // Data layer
         var dataStore = new JsonDataStore(dataDir);
         _settingsManager = new SettingsManager(settingsDir);
-        ThemeManager.Apply(await _settingsManager.LoadLightThemeAsync());
+        var appearance = await _settingsManager.LoadSidebarAppearanceAsync();
+        ThemeManager.Apply(appearance.Theme, appearance.IsNight(appearance.Theme));
         var savedGameTheme = await _settingsManager.LoadGameShopThemeAsync();
         if (savedGameTheme is null)
         {
@@ -169,6 +191,8 @@ public partial class App : Application
             }
         }
         var gameTheme = savedGameTheme.Value;
+        var uiTheme = appearance.ThemeFor(gameTheme);
+        ThemeManager.Apply(uiTheme, appearance.IsNight(uiTheme));
 
         // Load data
         AppLogger.Info("App", "Loading operators...");
@@ -178,8 +202,6 @@ public partial class App : Application
         var (equipment, manualJobChangeEquipments) = await dataStore.LoadEquipmentAsync();
         AppLogger.Info("App", $"Loaded {equipment.Count} equipment items");
 
-        var skinAvatarMap = await dataStore.LoadSkinAvatarMapAsync();
-        AppLogger.Info("App", $"Loaded {skinAvatarMap.Count} skin avatar entries");
 
         var (covenantInfos, jobChangeEquipmentToCovenant) = await dataStore.LoadCovenantsAsync();
         var strategies = await dataStore.LoadStrategiesAsync();
@@ -207,6 +229,7 @@ public partial class App : Application
         var operatorVm = new OperatorBrowseViewModel();
         operatorVm.LoadOperators(operators.Where(o => o.RequiredStrategyId.Length == 0).ToList());
         operatorVm.SetBanChecker(banVm.IsBanned);
+        operatorVm.SetCovenantBanChecker(banVm.IsCovenantBanned);
 
         var covenantNames = operators
             .SelectMany(o => o.CoreCovenants.Concat(o.AdditionalCovenants))
@@ -239,10 +262,11 @@ public partial class App : Application
         var captureService = _captureService = new ScreenCaptureService(
             new GameConnectionService(await _settingsManager.LoadGameConnectionAsync()));
         var ocrEngine = new MaaOcrEngine(dataDir);
+        // The shop reader matches the whole catalogue; highlighting against tracking happens afterwards,
+        // so switching the tracked lineup updates markers without waiting for a new scan.
         var shopNames = operators.Where(o => o.RequiredStrategyId.Length == 0).Select(o => o.Name)
             .Concat(equipment.Select(e => e.Name)).Distinct().ToList();
         var shopReader = new ShopReader(ocrEngine, shopNames) { Theme = gameTheme };
-        var banIconMatcher = new MaaBanIconMatcher(dataDir);
         // Covenant groups come from covenants.json (bondType), not from the operator roster:
         // a covenant with no operator in the local data set (a new season addition) must
         // still be recognised on the ban screen.
@@ -262,28 +286,16 @@ public partial class App : Application
             $"Covenant names: core={coreCovenantNames.Count} additional={additionalCovenantNames.Count}");
 
         var enemyRecognizer = new EnemyRecognizer(ocrEngine, garrisonMode.OcrStrategy, bossDataService);
+        var boardData = await Core.Data.GarrisonBoardStore.LoadAsync(dataDir);
         _ocrScanner = new OcrScannerService(
             captureService.CaptureScreen, garrisonMode.OcrStrategy, shopReader, ocrEngine, gameState, shopNames,
-            getAllOperators: () =>
-            {
-                var covenantLookup = operators.ToDictionary(
-                    o => o.Name,
-                    o => ((IReadOnlyList<string>)o.CoreCovenants, (IReadOnlyList<string>)o.AdditionalCovenants));
-                return skinAvatarMap
-                    .GroupBy(kvp => kvp.Value)
-                    .Select(g =>
-                    {
-                        covenantLookup.TryGetValue(g.Key, out var cv);
-                        return (g.Key,
-                                cv.Item1 ?? (IReadOnlyList<string>)[],
-                                cv.Item2 ?? (IReadOnlyList<string>)[],
-                                (IReadOnlyList<string>)g.Select(kvp => $"skin_avatars/{kvp.Key}").ToList());
-                    })
-                    .ToList();
-            },
-            iconMatcher: banIconMatcher,
             intervalMs: 500,
-            getConnection: () => captureService.Connection);
+            getConnection: () => captureService.Connection)
+        {
+            TerminalReader = new TerminalLevelReader(ocrEngine),
+            ThemeProvider = () => shopReader.Theme,
+            BoardRecognizer = boardData is null ? null : new BoardRecognizer(boardData),
+        };
 
         _windowTracker = new WindowTrackerService(
             findWindow: () => captureService.Connection.FindGameWindow(),
@@ -369,7 +381,7 @@ public partial class App : Application
                 {
                     _lastShopItems = [];
                     overlay.UpdateShopItems([]);
-                    sidePanel.UpdateGameConnectionStatus(captureService.Connection.Status);
+                    sidePanel.UpdateGameConnectionStatus(captureService.Connection.IsAdb, captureService.Connection.Status);
                 }
             }
             finally { _informationScanGate.Release(); }
@@ -378,7 +390,7 @@ public partial class App : Application
         {
             Interval = TimeSpan.FromSeconds(1),
         };
-        _connectionStatusTimer.Tick += (_, _) => sidePanel.UpdateGameConnectionStatus(captureService.Connection.Status);
+        _connectionStatusTimer.Tick += (_, _) => sidePanel.UpdateGameConnectionStatus(captureService.Connection.IsAdb, captureService.Connection.Status);
         _connectionStatusTimer.Start();
 
         void UpdateOverlayPosition(bool refreshShopItems)
@@ -446,7 +458,7 @@ public partial class App : Application
             Dispatcher.Invoke(() =>
             {
                 Core.GameState.GameStateUpdater.UpdateShopTracking(
-                    state.ShopItems, trackingVm.AllEntries.ToList());
+                    state.ShopItems, trackingVm.ActiveEntries.ToList());
 
                 _lastShopItems = state.ShopItems;
 
@@ -460,13 +472,36 @@ public partial class App : Application
             });
         };
 
-        // Wire ban detection: manual screenshot scan results → update operator ban state.
-        _ocrScanner.BansDetected += names =>
+
+        // Board recognition → deployment overlay + status under the settings toggle.
+        var showBoard = await _settingsManager.LoadShowBoardOverlayAsync();
+        sidePanel.InitBoardOverlay(showBoard);
+        // 追踪 · 站位: placement planning for the recognised map; its plan is drawn on the same board overlay.
+        var deployState = await _settingsManager.LoadDeployPoolAsync();
+        var deploy = sidePanel.TrackingView.DeployPage;
+        deploy.Initialize(operators.GroupBy(o => o.Name).ToDictionary(g => g.Key, g => g.First()), covenantInfos,
+            boardData, trackingVm, _settingsManager, deployState, deployState.ShowInGame);
+        void ApplyBoard(BoardMatch? match)
         {
-            Dispatcher.Invoke(() =>
-            {
-                banVm.SetBans(names);
-            });
+            sidePanel.SetBoardStatus(match?.Map.Name, match?.Camera == Core.Models.BoardCamera.Expanded);
+            deploy.SetRecognizedBoard(match);
+            // 站位页的“游戏内显示”是总开关；设置里的“游戏内显示部署格”只管要不要同时画格子和路线。
+            bool draw = deploy.ShowInGame;
+            overlay.UpdateBoard(draw ? match?.Map : null,
+                draw && match is not null ? boardData?.Cameras[match.Camera] : null, showCells: false);   // no grid, only the plan
+        }
+        deploy.PlanChanged += plan => overlay.UpdatePlacements(plan);
+        deploy.ShowInGameChanged += enabled =>
+        {
+            deployState.ShowInGame = enabled;
+            _ = _settingsManager.SaveDeployPoolAsync(deployState);
+            ApplyBoard(_ocrScanner.CurrentBoard);
+        };
+        _ocrScanner.BoardChanged += match => Dispatcher.Invoke(() => ApplyBoard(match));
+        sidePanel.BoardOverlayToggled += enabled =>
+        {
+            showBoard = enabled;
+            ApplyBoard(_ocrScanner.CurrentBoard);
         };
 
         // Enemy recognition result → update enemy tab (include boss + enemy-type data).
@@ -589,14 +624,42 @@ public partial class App : Application
                 _informationScanGate.Release();
             }
         }
-        _ocrScanner.BanScreenDetected += async () => await RecordInformationAsync();
+        _ocrScanner.BanScreenDetected += async () =>
+        {
+            // The opening info screen starts a new run: the previous run's terminal level no longer applies.
+            _ocrScanner.ResetTerminalLevel();
+            Dispatcher.Invoke(() => { trackingVm.ResetTerminalLevel(); _sidePanel.PlannerVm.CurrentTerminalLevel = 0; });
+            await _settingsManager!.SaveTerminalLevelAsync(0);
+            await RecordInformationAsync();
+        };
+        _ocrScanner.TerminalLevelChanged += level =>
+        {
+            Dispatcher.Invoke(() =>
+            {
+                trackingVm.IsTerminalLevelRestored = false;
+                trackingVm.DetectedTerminalLevel = level;
+            });
+            _ = _settingsManager!.SaveTerminalLevelAsync(level);
+        };
+        // Restarted mid-run: start from the saved level until the shop's upgrade card confirms or replaces it.
+        if (await _settingsManager!.LoadTerminalLevelAsync() is { } savedLevel)
+        {
+            _ocrScanner.RestoreTerminalLevel(savedLevel);
+            trackingVm.DetectedTerminalLevel = savedLevel;
+            trackingVm.IsTerminalLevelRestored = true;
+        }
+        trackingVm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != nameof(TrackingViewModel.TerminalLevel)) return;
+            _sidePanel.PlannerVm.CurrentTerminalLevel = trackingVm.TerminalLevel;
+            RefreshOverlayTracking(trackingVm);
+        };
         _sidePanel.ManualScanRequested += async () => await RecordInformationAsync();
 
         // Manual ban/unban from operator card button.
         _sidePanel.BanToggleRequested += (name, banned) =>
         {
             banVm.ToggleBan(name);
-            _ocrScanner!.SetManualBan(name, banned);
         };
 
 
@@ -633,7 +696,7 @@ public partial class App : Application
     {
         if (_overlay is null) return;
         Core.GameState.GameStateUpdater.UpdateShopTracking(
-            _lastShopItems, trackingVm.AllEntries.ToList());
+            _lastShopItems, trackingVm.ActiveEntries.ToList());
         Dispatcher.Invoke(() => _overlay.UpdateShopItems(_lastShopItems));
         if (_lastShopItems.Count == 0 && trackingVm.AllEntries.Any(e => !e.IsAcquired))
             _ = _ocrScanner!.ScanNowAsync();

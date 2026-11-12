@@ -20,7 +20,8 @@ public class PlannerCalculationIntegrationTests
         var planned = new LineupPlanner(operators, covenants).Solve(new PlannerRequest
         {
             Goals = [new("炎", 1, 3, false, true), new("调和", 1, 1, false, false)],
-            LockedOperators = natives.Append("魔王").ToHashSet(), PeopleOptions = [8], TransformOptions = [0]
+            // Exactly the three locked operators: free slots would otherwise be filled for the additional score.
+            LockedOperators = natives.Append("魔王").ToHashSet(), PeopleOptions = [3], TransformOptions = [0]
         }).Single();
         planned.Counts["炎"].Should().Be(3);
         planned.Counts["调和"].Should().Be(1);

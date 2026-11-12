@@ -12,7 +12,8 @@ public class LineupPlannerTests
         var planner = new LineupPlanner(Enumerable.Range(0, 49).Select(i => Op($"干员{i}", ["炎"])), [Core("炎")]);
         var variant = planner.Plan(new PlannerRequest
         {
-            Goals = [new("炎", 1, 1, false, true)], PeopleOptions = [8], TransformOptions = [0]
+            // One slot: every lineup is a single target holder, so only the 48-branch cap limits the search.
+            Goals = [new("炎", 1, 1, false, true)], PeopleOptions = [1], TransformOptions = [0]
         }, CancellationToken.None, maxResultsPerVariant: 100).Variants.Single();
 
         variant.Lineups.Should().HaveCount(48);
@@ -24,6 +25,46 @@ public class LineupPlannerTests
     private static CovenantInfo Extra(string name, int count = 2) => new() { Name = name, BondType = "REGULAR", ActivateCount = count };
     private static Operator Op(string name, string[]? core = null, string[]? extra = null)
         => new() { Name = name, CoreCovenants = [.. core ?? []], AdditionalCovenants = [.. extra ?? []], IconPath = $"icons/operators/{name}.png" };
+
+    private static Operator Healer(Operator op)
+    {
+        op.Profile = new OperatorProfile { Profession = "医疗", Roles = [OperatorProfile.HealerRole] };
+        return op;
+    }
+
+    [Fact]
+    public void Plan_KeepsAtLeastOneHealerInTheFinalLineup()
+    {
+        var ops = new List<Operator>
+        {
+            Op("炎1", ["炎"], ["突袭"]), Op("炎2", ["炎"], ["突袭"]), Op("炎3", ["炎"], ["突袭"]), Op("炎4", ["炎"], ["突袭"]),
+            Healer(Op("医疗", ["维多利亚"]))
+        };
+        var planner = new LineupPlanner(ops, [Core("炎"), Core("维多利亚"), Extra("突袭")]);
+        var lineups = planner.Solve(new PlannerRequest
+        {
+            Goals = [new("炎", 1, 3, false, true)], PeopleOptions = [4], TransformOptions = [0]
+        });
+
+        lineups.Should().NotBeEmpty();
+        lineups.Should().OnlyContain(l => l.Operators.Any(o => o.Name == "医疗") && !l.MissingHealer);
+    }
+
+    [Fact]
+    public void Plan_FlagsLineupsWhenTargetsLeaveNoRoomForAHealer()
+    {
+        var ops = new List<Operator>
+        {
+            Op("炎1", ["炎"]), Op("炎2", ["炎"]), Op("炎3", ["炎"]), Healer(Op("医疗", ["维多利亚"]))
+        };
+        var planner = new LineupPlanner(ops, [Core("炎"), Core("维多利亚")]);
+        var lineups = planner.Solve(new PlannerRequest
+        {
+            Goals = [new("炎", 1, 3, false, true)], PeopleOptions = [3], TransformOptions = [0]
+        });
+
+        lineups.Should().ContainSingle().Which.MissingHealer.Should().BeTrue();
+    }
 
     [Fact]
     public void Solve_ReturnsEightAndNinePersonVariants()
@@ -42,15 +83,101 @@ public class LineupPlannerTests
     }
 
     [Fact]
-    public void Solve_OnlyPicksOperatorsTheTargetsNeed()
+    public void Solve_FillsTheRequestedPeopleCount()
     {
         var operators = Enumerable.Range(1, 9).Select(i => Op($"干员{i}", ["炎"]));
         var planner = new LineupPlanner(operators, [Core("炎")]);
 
         var results = planner.Solve(new PlannerRequest { Goals = [new PlannerGoal("炎", 1, 3, false, true)] });
 
-        results.Should().OnlyContain(r => r.Operators.Count == 3);
-        results.Where(r => r.People == 8).Should().OnlyContain(r => r.FreeSlots == 5);
+        results.Should().OnlyContain(r => r.Operators.Count == r.People);
+        results.Where(r => r.People == 8).Should().OnlyContain(r => r.FreeSlots == 0);
+    }
+
+    [Fact]
+    public void Solve_RanksCompleteLineupsByAdditionalCovenantScore()
+    {
+        var operators = new List<Operator>
+        {
+            Op("炎甲", ["炎"]), Op("炎乙", ["炎"]), Op("炎丙", ["炎"]),
+            Op("精准甲", extra: ["精准"]), Op("精准乙", extra: ["精准"]),
+            Op("空甲"), Op("空乙"), Op("空丙"), Op("空丁"), Op("空戊")
+        };
+        var planner = new LineupPlanner(operators, [Core("炎"), Extra("精准")]);
+
+        var result = planner.Plan(new PlannerRequest
+        {
+            Goals = [new PlannerGoal("炎", 1, 3, false, true)],
+            PeopleOptions = [8], TransformOptions = [0]
+        }, maxResultsPerVariant: 3);
+
+        var best = result.AllLineups.First();
+        best.Operators.Should().HaveCount(8);
+        best.AdditionalScore.Should().Be(1);
+        best.AdditionalCovenants.Should().ContainKey("精准");
+    }
+
+    [Fact]
+    public void Solve_ManualSecondLevelCountsOnlyLevelOneScore()
+    {
+        var operators = new[]
+        {
+            Op("炎甲", ["炎"]), Op("炎乙", ["炎"]), Op("炎丙", ["炎"]),
+            Op("突袭甲", extra: ["突袭"]), Op("突袭乙", extra: ["突袭"]), Op("突袭丙", extra: ["突袭"]),
+            Op("空甲"), Op("空乙")
+        };
+        var planner = new LineupPlanner(operators, [Core("炎"), Extra("突袭")]);
+
+        var result = planner.Plan(new PlannerRequest
+        {
+            Goals = [new PlannerGoal("炎", 1, 3, false, true)],
+            PeopleOptions = [8], TransformOptions = [0]
+        });
+
+        result.AllLineups.Should().ContainSingle().Which.AdditionalScore.Should().Be(1);
+    }
+
+    [Fact]
+    public void Solve_BannedAdditionalCovenantStillContributesToScore()
+    {
+        var operators = new[]
+        {
+            Op("炎甲", ["炎"]), Op("炎乙", ["炎"]), Op("炎丙", ["炎"]),
+            Op("坚守甲", ["炎"], ["坚守"]), Op("坚守乙", ["炎"], ["坚守"]), Op("坚守丙", ["炎"], ["坚守"]),
+            Op("空甲"), Op("空乙")
+        };
+        var planner = new LineupPlanner(operators, [Core("炎"), Extra("坚守")]);
+
+        var result = planner.Plan(new PlannerRequest
+        {
+            Goals = [new PlannerGoal("炎", 1, 3, false, true)],
+            BannedCovenants = new HashSet<string> { "坚守" },
+            PeopleOptions = [8], TransformOptions = [0]
+        });
+
+        result.AllLineups.Should().ContainSingle().Which.AdditionalScore.Should().Be(3);
+    }
+
+    [Fact]
+    public void Solve_PreparationAreaCovenantsDoNotContributeToAdditionalScore()
+    {
+        var operators = new[]
+        {
+            Op("炎甲", ["炎"]), Op("炎乙", ["炎"]), Op("炎丙", ["炎"]),
+            Op("奇迹甲", extra: ["奇迹"]), Op("奇迹乙", extra: ["奇迹"]),
+            Op("投资人甲", extra: ["投资人"]), Op("投资人乙", extra: ["投资人"]),
+            Op("远见甲", extra: ["远见"]),
+            Op("空甲"), Op("空乙")
+        };
+        var planner = new LineupPlanner(operators, [Core("炎"), Extra("奇迹"), Extra("投资人"), Extra("远见")]);
+
+        var result = planner.Plan(new PlannerRequest
+        {
+            Goals = [new PlannerGoal("炎", 1, 3, false, true)],
+            PeopleOptions = [8], TransformOptions = [0]
+        });
+
+        result.AllLineups.First().AdditionalScore.Should().Be(0);
     }
 
     [Fact]
@@ -142,6 +269,23 @@ public class LineupPlannerTests
     }
 
     [Fact]
+    public void CovenantBans_RemoveOperatorsWhoseCovenantsAreAllBanned()
+    {
+        // 霍尔海雅: 奥术 + 精准, no core covenant.
+        var hoederer = new Operator { Name = "霍尔海雅", AdditionalCovenants = ["奥术", "精准"] };
+        CovenantBanRules.IsExcluded(hoederer, new HashSet<string> { "奥术" }).Should().BeFalse();
+        CovenantBanRules.IsExcluded(hoederer, new HashSet<string> { "奥术", "精准" }).Should().BeTrue();
+        // Two core covenants (哈洛德): both banned removes him, one does not.
+        var harold = new Operator { Name = "哈洛德", CoreCovenants = ["维多利亚", "谢拉格"] };
+        CovenantBanRules.IsExcluded(harold, new HashSet<string> { "维多利亚" }).Should().BeFalse();
+        CovenantBanRules.IsExcluded(harold, new HashSet<string> { "维多利亚", "谢拉格" }).Should().BeTrue();
+        // Three covenants: one left unbanned keeps the operator.
+        var eyja = new Operator { Name = "纯烬艾雅法拉", CoreCovenants = ["莱塔尼亚"], AdditionalCovenants = ["聚合", "远见"] };
+        CovenantBanRules.IsExcluded(eyja, new HashSet<string> { "莱塔尼亚", "聚合" }).Should().BeFalse();
+        CovenantBanRules.IsExcluded(eyja, new HashSet<string> { "莱塔尼亚", "聚合", "远见" }).Should().BeTrue();
+    }
+
+    [Fact]
     public void Plan_BannedAdditionalCovenantCanStillBeTargeted()
     {
         // 突袭 is banned: 纯突袭 (only covenant banned) leaves the pool, but operators who also have a core covenant stay.
@@ -208,8 +352,8 @@ public class LineupPlannerTests
     [Theory]
     [InlineData("乌萨斯", "SEASON", 2, 6, false)]
     [InlineData("不屈", "REGULAR", 2, 3, false)]
-    [InlineData("突袭", "REGULAR", 2, 2, true)]
-    [InlineData("绝技", "REGULAR", 2, 2, true)]
+    [InlineData("突袭", "REGULAR", 2, 2, false)]
+    [InlineData("绝技", "REGULAR", 2, 2, false)]
     [InlineData("独行", "REGULAR", 2, 1, false)]
     public void CreateGoal_MapsSecondLevelRules(string name, string bondType, int level, int expectedCount, bool manual)
     {

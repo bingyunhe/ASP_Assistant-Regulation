@@ -3,8 +3,8 @@ using ASPAssistant.Core.Models;
 namespace ASPAssistant.Core.Services;
 
 /// <summary>
-/// Searches compact lineups (8/9 people × 0/1/2 transforms) that reach the selected covenant targets.
-/// Only operators the targets actually need are picked; the rest of the lineup is reported as free slots.
+/// Searches complete lineups (8/9 people × 0/1/2 transforms) that reach the selected covenant targets.
+/// Feasible lineups are ranked by the number and level of additional covenants they activate.
 /// </summary>
 public sealed class LineupPlanner
 {
@@ -14,8 +14,14 @@ public sealed class LineupPlanner
     public static readonly IReadOnlySet<string> PeopleSecond = new HashSet<string> { "精准", "坚守", "助力", "不屈", "聚合", "奥术" };
     /// <summary>Covenants without a level II.</summary>
     public static readonly IReadOnlySet<string> NoSecond = new HashSet<string> { "独行", "调和", "协防干员" };
+    /// <summary>These covenants apply in the preparation area and are not counted as lineup bonuses.</summary>
+    public static readonly IReadOnlySet<string> NoAdditionalScore = new HashSet<string> { "奇迹", "投资人", "远见", "独行", "调和" };
     public const string SoloCovenant = "独行";
     public const int MaxLockedOperators = 9;
+    /// <summary>Active 聚合 counts as a 奶位 like a healer.</summary>
+    public const string HealingCovenant = "聚合";
+    /// <summary>暴躁铁皮's own covenant.</summary>
+    public const string MechCovenant = "协防干员";
     private const int MaxBranches = 48;
 
     private readonly IReadOnlyList<Operator> _operators;
@@ -46,26 +52,18 @@ public sealed class LineupPlanner
         if (level < 2 || !HasSecondLevel(covenant)) return new PlannerGoal(covenant.Name, 1, basic, false, isCore);
         if (isCore) return new PlannerGoal(covenant.Name, 2, 6, false, true);
         if (PeopleSecond.Contains(covenant.Name)) return new PlannerGoal(covenant.Name, 2, 3, false, false);
-        return new PlannerGoal(covenant.Name, 2, basic, true, false);
+        // The planner cannot verify stack/elite conditions for these II levels,
+        // so a requested II behaves as the safely verifiable I level.
+        return new PlannerGoal(covenant.Name, 1, basic, false, false);
     }
 
     public IReadOnlySet<string> DefaultTransformAllowed(IReadOnlySet<string>? bannedCovenants = null)
         => _covenants.Where(c => !NoTransform.Contains(c.Name) && bannedCovenants?.Contains(c.Name) != true)
             .Select(c => c.Name).ToHashSet(StringComparer.Ordinal);
 
-    /// <summary>
-    /// Operators that cannot appear because of covenant bans: their only covenant is banned,
-    /// or both a core covenant and an additional covenant of theirs are banned.
-    /// </summary>
+    /// <summary>Operators that cannot appear because of covenant bans (see <see cref="CovenantBanRules"/>).</summary>
     public bool IsExcludedByBans(Operator op, IReadOnlySet<string> bannedCovenants)
-    {
-        if (bannedCovenants.Count == 0) return false;
-        var all = op.CoreCovenants.Concat(op.AdditionalCovenants).Distinct().ToList();
-        if (all.Count == 1 && bannedCovenants.Contains(all[0])) return true;
-        var coreBanned = all.Any(c => _coreNames.Contains(c) && bannedCovenants.Contains(c));
-        var additionalBanned = all.Any(c => !_coreNames.Contains(c) && bannedCovenants.Contains(c));
-        return coreBanned && additionalBanned;
-    }
+        => CovenantBanRules.IsExcluded(op, bannedCovenants);
 
     // ── Search ──────────────────────────────────────────────────────────────
 
@@ -100,7 +98,7 @@ public sealed class LineupPlanner
         // Transform targets that are not in covenant data (tests, custom data) still count.
         allowed.AddRange(request.TransformAllowed.Where(n => !allowed.Contains(n) && !request.BannedCovenants.Contains(n) && !NoTransform.Contains(n) && _covenants.All(c => c.Name != n)));
 
-        var ctx = new SearchContext(request, candidates, allowed,
+        var ctx = new SearchContext(request, candidates, allowed, _covenants,
             [.. request.LockedOperators.Select(n => indexByName[n])], maxResultsPerVariant, maxNodes, cancellationToken);
         var variants = new List<PlannerVariantResult>();
         foreach (var transforms in request.TransformOptions)
@@ -118,6 +116,8 @@ public sealed class LineupPlanner
     {
         private readonly PlannerRequest _request;
         private readonly List<Operator> _ops;
+        private readonly IReadOnlyList<CovenantInfo> _covenants;
+        private readonly HashSet<string> _coreNames;
         private readonly HashSet<string>[] _native;
         private readonly bool[] _harmony;
         private readonly List<string> _allowedOrdered;
@@ -129,11 +129,22 @@ public sealed class LineupPlanner
         private readonly CancellationToken _ct;
         private readonly Dictionary<string, int> _rarity;
         private readonly HashSet<string> _seen = new(StringComparer.Ordinal);
+        /// <summary>暴躁铁皮 (takes one place): transformations it can carry (0 without the strategy).</summary>
+        private readonly int _mechCap;
+        /// <summary>Pith's 调和 piece (takes one place, not searched): counts like one more 调和 holder.</summary>
+        private readonly int _extraHarmony;
         private readonly HashSet<string> _goalNames;
+        private readonly HashSet<string> _additionalNames;
         private readonly bool _hasSoloGoal;
+        // 奶位: every final lineup keeps at least one healer (or an active 聚合). Only enforced when the
+        // operator data carries roles; if no lineup can have one, the search is repeated without it.
+        private readonly bool[] _healer;
+        private readonly bool _healerData;
+        private readonly int _healingNeed;
+        private bool _requireHealer;
 
         // per-variant state
-        private int _people, _transforms, _nodes;
+        private int _people, _teamSize, _transforms, _nodes;
         private bool _limited;
         private List<PlannedLineup> _found = [];
         private readonly List<int> _picked = [];
@@ -142,34 +153,69 @@ public sealed class LineupPlanner
         private static readonly IReadOnlyDictionary<int, string> NoTransforms = new Dictionary<int, string>();
 
         public SearchContext(PlannerRequest request, List<Operator> ops, List<string> allowed,
+            IReadOnlyList<CovenantInfo> covenants,
             List<int> locked, int maxResults, int maxNodes, CancellationToken ct)
         {
-            _request = request; _ops = ops; _allowedOrdered = allowed; _allowed = [.. allowed];
+            _request = request; _ops = ops; _covenants = covenants; _coreNames = covenants
+                .Where(c => c.BondType == "SEASON").Select(c => c.Name).ToHashSet(StringComparer.Ordinal);
+            _allowedOrdered = allowed; _allowed = [.. allowed];
             _locked = locked; _lockedSet = [.. locked]; _maxResults = maxResults; _maxNodes = maxNodes; _ct = ct;
             _native = ops.Select(o => o.CoreCovenants.Concat(o.AdditionalCovenants).ToHashSet(StringComparer.Ordinal)).ToArray();
             _harmony = _native.Select(c => c.Contains(CovenantCalculator.HarmonyCovenant)).ToArray();
             _used = new bool[ops.Count];
             _rarity = request.Goals.ToDictionary(g => g.Name, g => _native.Count(n => n.Contains(g.Name)));
             _goalNames = request.Goals.Select(g => g.Name).ToHashSet(StringComparer.Ordinal);
+            _additionalNames = _covenantNames.Where(n => !_goalNames.Contains(n)
+                && !_coreNames.Contains(n) && !NoAdditionalScore.Contains(n)).ToHashSet(StringComparer.Ordinal);
             _hasSoloGoal = request.Goals.Any(g => g.Name == SoloCovenant);
+            _healer = ops.Select(o => o.Profile?.IsHealer == true).ToArray();
+            _healerData = _healer.Any(h => h);
+            var healing = covenants.FirstOrDefault(c => c.Name == HealingCovenant);
+            _healingNeed = healing is null ? 0 : CreateGoal(healing, 1).Count;
+            _mechCap = request.Strategy == PlannerStrategy.Mech ? PlannerStrategies.MechTransformCap(request.MechElite) : 0;
+            _extraHarmony = request.Strategy == PlannerStrategy.Pith ? 1 : 0;
         }
+
+        private bool HasHealer(IReadOnlyList<int> team, Dictionary<string, int> counts)
+            => !_requireHealer || team.Any(i => _healer[i])
+               || _healingNeed > 0 && counts.GetValueOrDefault(HealingCovenant) >= _healingNeed;
+
+        private IReadOnlyList<string> _covenantNames => _covenants.Select(c => c.Name).ToList();
 
         public PlannerVariantResult SolveVariant(int people, int transforms)
         {
             _ct.ThrowIfCancellationRequested();
-            _people = people; _transforms = transforms; _nodes = 0; _limited = false; _found = [];
+            // 暴躁铁皮 / Pith take one of the places themselves.
+            var places = people - PlannerStrategies.PiecePlaces(_request.Strategy);
+            _people = people; _teamSize = Math.Min(places, _ops.Count); _transforms = transforms;
+            _nodes = 0; _limited = false; _found = [];
             _picked.Clear(); _visited.Clear(); Array.Clear(_used);
-            if (_locked.Count > people) return new PlannerVariantResult(people, transforms, [], false);
+            if (_locked.Count > places) return new PlannerVariantResult(people, transforms, [], false);
             foreach (var i in _locked) { _picked.Add(i); _used[i] = true; }
+            _requireHealer = _healerData;
             Visit();
+            if (_found.Count == 0 && _requireHealer)
+            {
+                // Targets leave no room for a healer: return the best lineups anyway, flagged.
+                _requireHealer = false;
+                _nodes = 0; _visited.Clear();
+                Visit();
+                _found = [.. _found.Select(f => f with { MissingHealer = true })];
+            }
             var limited = _limited;
             return new PlannerVariantResult(people, transforms,
                 _found.Select(f => f with { SearchLimited = limited }).ToList(), limited);
         }
 
-        private (Dictionary<string, int> Counts, Dictionary<string, int> Bonus) Count(IReadOnlyList<int> team, IReadOnlyDictionary<int, string> tr)
+        private (Dictionary<string, int> Counts, Dictionary<string, int> Bonus) Count(IReadOnlyList<int> team,
+            IReadOnlyDictionary<int, string> tr, IReadOnlyCollection<string>? mech = null)
         {
-            var counts = _request.Goals.ToDictionary(g => g.Name, _ => 0);
+            var counts = _covenants.Select(c => c.Name).Distinct(StringComparer.Ordinal)
+                .ToDictionary(n => n, _ => 0, StringComparer.Ordinal);
+            foreach (var target in tr.Values.Concat(mech ?? []))
+                if (!counts.ContainsKey(target)) counts[target] = 0;
+            foreach (var goal in _request.Goals)
+                counts.TryAdd(goal.Name, 0);
             var present = new HashSet<string>(StringComparer.Ordinal);
             var harmony = 0;
             foreach (var i in team)
@@ -194,6 +240,18 @@ public sealed class LineupPlanner
                     present.Add(t);
                 }
             }
+            // 暴躁铁皮 itself is a 协防干员 (another one activates it).
+            if (_mechCap > 0 && counts.ContainsKey(MechCovenant)) counts[MechCovenant]++;
+            foreach (var t in mech ?? [])
+            {
+                counts[t]++;
+                present.Add(t);
+            }
+            if (_extraHarmony > 0)
+            {
+                harmony += _extraHarmony;
+                if (counts.ContainsKey(CovenantCalculator.HarmonyCovenant)) counts[CovenantCalculator.HarmonyCovenant] += _extraHarmony;
+            }
             var bonus = new Dictionary<string, int>(StringComparer.Ordinal);
             if (harmony > 0)
                 foreach (var g in _request.Goals.Where(g => g.IsCore && present.Contains(g.Name)))
@@ -204,13 +262,13 @@ public sealed class LineupPlanner
             return (counts, bonus);
         }
 
-        private bool Done => _found.Count >= _maxResults || _nodes > _maxNodes;
+        private bool Done => _nodes > _maxNodes;
 
         private int TransformDeficit(PlannerGoal goal, Dictionary<string, int> counts)
         {
             var deficit = Math.Max(0, goal.Count - counts[goal.Name]);
             return goal.IsCore && counts[goal.Name] == 0 && deficit > 0
-                ? Math.Max(1, deficit - _picked.Count(i => _harmony[i]))
+                ? Math.Max(1, deficit - _picked.Count(i => _harmony[i]) - _extraHarmony)
                 : deficit;
         }
 
@@ -227,39 +285,58 @@ public sealed class LineupPlanner
             var (counts, _) = Count(_picked, NoTransforms);
             if (_hasSoloGoal && counts[SoloCovenant] > 1) return;
             var missing = _request.Goals.Where(g => counts[g.Name] < g.Count).ToList();
-            var slots = _people - _picked.Count;
+            var slots = _teamSize - _picked.Count;
             var trLeft = _transforms;
 
-            // Remaining deficits fit into the transforms: try to finish here.
+            // Once targets are reachable, keep branching until the whole lineup is
+            // filled. This is what lets the score see the operators in the free slots.
             var transformDeficit = missing.Sum(g => TransformDeficit(g, counts));
-            if (missing.All(g => _allowed.Contains(g.Name)) && transformDeficit <= trLeft)
+            var needHealer = !HasHealer(_picked, counts);
+            if (slots <= 0)
             {
-                if (TryFinish(counts)) return;
-                if (missing.Count == 0) return;
+                if (missing.All(g => _allowed.Contains(g.Name)) && transformDeficit <= trLeft)
+                    TryFinish(counts);
+                return;
             }
-            if (slots <= 0 || !CanStillReach(missing, counts, slots, trLeft)) return;
+            // Last free slot and still no 奶位: it has to be a healer (a transform into 聚合 is checked at finish).
+            if (!CanStillReach(missing, counts, slots, trLeft)) return;
             if (!_visited.Add(StateKey())) return;
 
             // Branch on the hardest goal: ones that cannot be transformed first, then the rarest.
-            var pivot = missing
+            // If transforms can cover every remaining deficit, the next operator
+            // is selected for the score rather than for a target covenant.
+            var pivot = missing.Count > 0 && !(missing.All(g => _allowed.Contains(g.Name)) && transformDeficit <= trLeft) ? missing
                 .OrderBy(g => _allowed.Contains(g.Name) ? 1 : 0)
                 .ThenBy(g => _rarity[g.Name])
                 .ThenByDescending(g => g.Count - counts[g.Name])
-                .First();
+                .First() : null;
 
             var branches = new List<(int Index, double Score)>();
             for (var i = 0; i < _ops.Count; i++)
             {
-                if (_used[i] || !Contributes(i, pivot, counts)) continue;
+                if (_used[i]) continue;
+                if (_hasSoloGoal && _native[i].Contains(SoloCovenant) && counts[ SoloCovenant ] >= 1) continue;
+                if (pivot is not null && !Contributes(i, pivot, counts)) continue;
+                if (needHealer && slots == 1 && !_healer[i] && trLeft == 0) continue;
                 var gain = missing.Count(g => Contributes(i, g, counts));
-                branches.Add((i, 10 * gain + (i * 13 % 31) / 50.0));
+                var extra = _native[i].Count(c => _additionalNames.Contains(c));
+                var heal = needHealer && _healer[i] ? 5 : 0;
+                branches.Add((i, 10 * gain + heal + 0.8 * extra + (i * 13 % 31) / 50.0));
+            }
+
+            // A solo covenant can make the requested people count impossible to
+            // fill with valid operators. Keep the best partial lineup in that case.
+            if (branches.Count == 0 && missing.Count == 0)
+            {
+                TryFinish(counts);
+                return;
             }
 
             var expanded = 0;
             foreach (var b in branches.OrderByDescending(b => b.Score).ThenBy(b => b.Index))
             {
                 if (Done) break;
-                if (expanded++ >= MaxBranches) { _limited = true; break; }
+                if (expanded++ >= MaxBranches) { if (pivot is not null) _limited = true; break; }
                 _picked.Add(b.Index); _used[b.Index] = true;
                 Visit();
                 _picked.RemoveAt(_picked.Count - 1); _used[b.Index] = false;
@@ -302,28 +379,21 @@ public sealed class LineupPlanner
             return string.Join(',', ids);
         }
 
-        /// <summary>Assigns transforms (and carrier operators if needed); records the lineup when every target is met.</summary>
+        /// <summary>Assigns transforms and records a complete, scored lineup.</summary>
         private bool TryFinish(Dictionary<string, int> nativeCounts)
         {
             var team = new List<int>(_picked);
             var tr = new Dictionary<int, string>();
-            var usedHere = new HashSet<int>(team);
+            var mech = new List<string>();
+            int Used() => tr.Count + mech.Count;
 
-            int? FindHolder(string covenant)
+            // 暴躁铁皮 first: it carries several job-change gear on one 变形同构体.
+            bool Assign(string covenant)
             {
+                if (mech.Count < _mechCap && !mech.Contains(covenant)) { mech.Add(covenant); return true; }
                 foreach (var i in team.OrderBy(i => _lockedSet.Contains(i)))
-                    if (!tr.ContainsKey(i) && !_native[i].Contains(covenant)) return i;
-                if (team.Count >= _people) return null;
-                // A carrier: an extra operator who takes the transform. Prefer ones that also hold target covenants.
-                var carrier = Enumerable.Range(0, _ops.Count)
-                    .Where(i => !_used[i] && !usedHere.Contains(i) && !_native[i].Contains(covenant))
-                    .Where(i => !(_hasSoloGoal && _native[i].Contains(SoloCovenant)))
-                    .OrderByDescending(i => _native[i].Count(_goalNames.Contains))
-                    .ThenBy(i => _ops[i].Tier)
-                    .Cast<int?>()
-                    .FirstOrDefault();
-                if (carrier is int c) { team.Add(c); usedHere.Add(c); }
-                return carrier;
+                    if (!tr.ContainsKey(i) && !_native[i].Contains(covenant)) { tr[i] = covenant; return true; }
+                return false;
             }
 
             foreach (var g in _request.Goals)
@@ -331,32 +401,46 @@ public sealed class LineupPlanner
                 var deficit = TransformDeficit(g, nativeCounts);
                 for (var k = 0; k < deficit; k++)
                 {
-                    if (tr.Count >= _transforms || !_allowed.Contains(g.Name)) return false;
-                    if (FindHolder(g.Name) is not int holder) return false;
-                    tr[holder] = g.Name;
+                    if (Used() >= _transforms || !_allowed.Contains(g.Name)) return false;
+                    if (!Assign(g.Name)) return false;
                 }
             }
 
             var forced = 0;
             var goalTargets = _request.Goals.Select(g => g.Name).Where(_allowed.Contains).ToList();
+            while (Used() < _transforms && mech.Count < _mechCap)
+            {
+                var target = goalTargets.FirstOrDefault(n => !mech.Contains(n))
+                    ?? _allowedOrdered.Where(n => !mech.Contains(n))
+                        .OrderByDescending(n => TransformScore(n, team, tr, mech)).FirstOrDefault();
+                if (target is null) break;
+                mech.Add(target); forced++;
+            }
             foreach (var i in team.OrderBy(i => _lockedSet.Contains(i)).ToList())
             {
-                if (tr.Count >= _transforms) break;
+                if (Used() >= _transforms) break;
                 if (tr.ContainsKey(i)) continue;
-                var target = goalTargets.FirstOrDefault(n => !_native[i].Contains(n))
-                             ?? _allowedOrdered.FirstOrDefault(n => !_native[i].Contains(n));
+                var target = goalTargets.FirstOrDefault(n => !_native[i].Contains(n));
+                target ??= _allowedOrdered
+                    .Where(n => !_native[i].Contains(n))
+                    .OrderByDescending(n => TransformScore(n, team, tr, mech))
+                    .FirstOrDefault();
                 if (target is null) continue;
                 tr[i] = target; forced++;
             }
-            if (tr.Count != _transforms) return false;
+            if (Used() != _transforms) return false;
 
-            var (counts, bonus) = Count(team, tr);
+            var (counts, bonus) = Count(team, tr, mech);
             if (_request.Goals.Any(g => counts[g.Name] < g.Count)) return false;
+            if (!HasHealer(team, counts)) return false;
             if (_hasSoloGoal && counts[SoloCovenant] != 1) return false;
 
             var key = string.Join(',', team.Select(i => _ops[i].Name).Order(StringComparer.Ordinal)) + '|' +
-                      string.Join(',', tr.Select(x => _ops[x.Key].Name + ':' + x.Value).Order(StringComparer.Ordinal));
+                      string.Join(',', tr.Select(x => _ops[x.Key].Name + ':' + x.Value).Order(StringComparer.Ordinal)) + '|' +
+                      string.Join(',', mech.Order(StringComparer.Ordinal));
             if (!_seen.Add(key)) return true;
+
+            var (additionalScore, additionalLevels) = Score(counts);
 
             var operators = team
                 .OrderBy(i => _lockedSet.Contains(i) ? 0 : 1)
@@ -366,13 +450,55 @@ public sealed class LineupPlanner
                     IsHarmony = _harmony[i],
                     IconPath = _ops[i].IconPath
                 }).ToList();
-            _found.Add(new PlannedLineup(_people, _transforms, operators, counts, false)
+            var lineup = new PlannedLineup(_people, _transforms, operators, counts, false)
             {
                 Goals = _request.Goals,
                 ForcedTransforms = forced,
-                HarmonyBonus = bonus
-            });
+                HarmonyBonus = bonus,
+                AdditionalScore = additionalScore,
+                AdditionalCovenants = additionalLevels,
+                Strategy = _request.Strategy,
+                MechCovenants = mech,
+                MechElite = _request.MechElite
+            };
+            _found.Add(lineup);
+            _found = _found
+                .OrderByDescending(x => x.AdditionalScore)
+                .ThenByDescending(x => x.AdditionalCovenants.Count)
+                .ThenBy(x => x.Operators.Sum(o => o.IsLocked ? 0 : 1))
+                .Take(_maxResults)
+                .ToList();
             return true;
         }
+
+        private int TransformScore(string covenant, IReadOnlyList<int> team, IReadOnlyDictionary<int, string> tr,
+            IReadOnlyCollection<string> mech)
+        {
+            if (!_additionalNames.Contains(covenant)) return 0;
+            var (counts, _) = Count(team, tr, mech);
+            var current = counts.GetValueOrDefault(covenant);
+            var info = _covenants.FirstOrDefault(c => c.Name == covenant);
+            var threshold = info?.ActivateCount ?? 2;
+            if (current + 1 < threshold) return 0;
+            return IsKnownSecond(covenant) && current + 1 >= 3 ? 3 : 1;
+        }
+
+        private (int Score, IReadOnlyDictionary<string, int> Levels) Score(IReadOnlyDictionary<string, int> counts)
+        {
+            var levels = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var covenant in _covenants)
+            {
+                if (!_additionalNames.Contains(covenant.Name)) continue;
+                var count = counts.GetValueOrDefault(covenant.Name);
+                var threshold = covenant.ActivateCount ?? 2;
+                if (count < threshold) continue;
+                var level = IsKnownSecond(covenant.Name) && count >= 3 ? 3 : 1;
+                levels[covenant.Name] = level;
+            }
+            return (levels.Values.Sum(), levels);
+        }
+
+        private static bool IsKnownSecond(string covenant)
+            => PeopleSecond.Contains(covenant);
     }
 }

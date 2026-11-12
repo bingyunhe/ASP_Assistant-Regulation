@@ -26,6 +26,81 @@ public partial class TrackingViewModel : ObservableObject
     public IReadOnlyList<TrackingEntry> AllEntries =>
         [.. TrackedOperators, .. TrackedEquipment];
 
+    /// <summary>Entries the shop should mark: 过渡 operators whose route stages are behind the player are left out.</summary>
+    public IReadOnlyList<TrackingEntry> ActiveEntries => [.. AllEntries.Where(e => !e.IsExpired)];
+
+    // ── Terminal level ──────────────────────────────────────────────────────
+
+    /// <summary>Level read from the shop's upgrade card (null = not seen yet this run).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TerminalLevel), nameof(TerminalLevelText))]
+    private int? _detectedTerminalLevel;
+
+    /// <summary>True while the level is the one saved by the last session and the shop has not shown it yet.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TerminalLevelText))]
+    private bool _isTerminalLevelRestored;
+
+    /// <summary>Player override (null = 自动).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TerminalLevel), nameof(TerminalLevelText), nameof(TerminalLevelChoice))]
+    private int? _manualTerminalLevel;
+
+    /// <summary>Effective level; 0 = unknown (nothing expires).</summary>
+    public int TerminalLevel => ManualTerminalLevel ?? DetectedTerminalLevel ?? 0;
+
+    public string TerminalLevelText => TerminalLevel == 0 ? "终端等级：未识别"
+        : ManualTerminalLevel is not null ? $"终端 {TerminalLevel} 级（手动）"
+        : IsTerminalLevelRestored ? $"终端 {TerminalLevel} 级（上次记录，打开商店后确认）"
+        : $"终端 {TerminalLevel} 级（自动识别）";
+
+    /// <summary>Choices for the override box: 0 = 自动, 1–6.</summary>
+    public IReadOnlyList<int> TerminalLevelChoices { get; } = [0, 1, 2, 3, 4, 5, 6];
+
+    public int TerminalLevelChoice
+    {
+        get => ManualTerminalLevel ?? 0;
+        set => ManualTerminalLevel = value is >= 1 and <= 6 ? value : null;
+    }
+
+    partial void OnDetectedTerminalLevelChanged(int? value)
+    {
+        // The terminal only goes up within a run: once the reading catches up with a manual value, the override has
+        // done its job and automatic tracking takes over again (otherwise it would pin the level for the whole run).
+        if (ManualTerminalLevel is { } manual && value >= manual) ManualTerminalLevel = null;
+        RefreshExpiry();
+    }
+    partial void OnManualTerminalLevelChanged(int? value) => RefreshExpiry();
+
+    /// <summary>New run: forget the level read in the previous one.</summary>
+    public void ResetTerminalLevel()
+    {
+        ManualTerminalLevel = null;
+        DetectedTerminalLevel = null;
+        IsTerminalLevelRestored = false;
+    }
+
+    /// <summary>Marks 过渡 entries whose stages are behind the current terminal level (replaced so lists and saves refresh).</summary>
+    private void RefreshExpiry()
+    {
+        var level = TerminalLevel;
+        for (var i = 0; i < TrackedOperators.Count; i++)
+        {
+            var e = TrackedOperators[i];
+            var expired = e.ExpiredAt(level);
+            if (e.IsExpired == expired) continue;
+            TrackedOperators[i] = Copy(e, expired);
+        }
+        OnPropertyChanged(nameof(ActiveEntries));
+    }
+
+    private static TrackingEntry Copy(TrackingEntry e, bool expired) => new()
+    {
+        Name = e.Name, Type = e.Type, TransformedCovenant = e.TransformedCovenant, Equipments = [.. e.Equipments],
+        IsElite = e.IsElite, IsManual = e.IsManual, Role = e.Role, Stages = e.Stages, ExpiresAt = e.ExpiresAt, IsExpired = expired,
+        IsAcquired = e.IsAcquired
+    };
+
     public (int Operators, int Equipment) TrackLineup(Lineup lineup)
     {
         if (!TrackMultipleLineups) ClearAllTracking();
@@ -44,12 +119,79 @@ public partial class TrackingViewModel : ObservableObject
                 };
                 if (existing is null) TrackedOperators.Add(entry);
                 else if (existing.IsAcquired || existing.TransformedCovenant != slot.TransformedCovenant || existing.IsElite != slot.IsElite
-                    || !existing.Equipments.SequenceEqual(slot.Equipments))
+                    || !existing.Equipments.SequenceEqual(slot.Equipments) || existing.Role != TrackingRole.Final)
                     TrackedOperators[TrackedOperators.IndexOf(existing)] = entry;
             }
         }
         RefreshEquipmentRequirements();
         return (TrackedOperators.Count(e => !e.IsAcquired && !previousOperators.Contains(e.Name)), TrackedEquipment.Count(e => !e.IsAcquired && !previousEquipment.Contains(e.Name)));
+    }
+
+    /// <summary>
+    /// Tracks every operator of a 道中路线 in one list: 大成 operators as <see cref="TrackingRole.Final"/>,
+    /// operators only used on the way as <see cref="TrackingRole.Transition"/> (with the stages that use them).
+    /// An operator already tracked as 大成 stays 大成. Returns (new 大成, new 过渡) counts.
+    /// </summary>
+    public (int Final, int Transition) TrackRoute(PlannedRoute route, LineupEquipmentService? equipmentRules = null)
+    {
+        if (!TrackMultipleLineups) ClearAllTracking();
+        var finalStage = route.Stages.LastOrDefault(s => s.IsFinal) ?? route.Stages.LastOrDefault();
+        if (finalStage is null) return (0, 0);
+        var transforms = finalStage.Operators.ToDictionary(o => o.Name, o => o.TransformedCovenant ?? "", StringComparer.Ordinal);
+        int newFinal = 0, newTransition = 0;
+        foreach (var op in finalStage.Operators)
+        {
+            var existing = TrackedOperators.FirstOrDefault(e => e.Name == op.Name);
+            var entry = new TrackingEntry { Name = op.Name, Type = TrackingType.Operator, Role = TrackingRole.Final };
+            // A planned transformation is tracked as its equipment (变形同构体 + the covenant's job-change gear).
+            var covenant = transforms[op.Name];
+            if (covenant.Length > 0 && equipmentRules?.CanTransformInto(covenant) == true)
+                entry.Equipments = [LineupEquipmentService.Shapeshifter, equipmentRules.EquipmentFor(covenant)];
+            else if (covenant.Length > 0)
+                entry.TransformedCovenant = covenant;
+            if (existing is null) { TrackedOperators.Add(entry); newFinal++; }
+            else if (existing.IsAcquired || existing.Role != TrackingRole.Final || existing.TransformedCovenant != entry.TransformedCovenant
+                     || !existing.Equipments.SequenceEqual(entry.Equipments))
+                TrackedOperators[TrackedOperators.IndexOf(existing)] = entry;
+        }
+
+        // Transition operators in route order (开局 first), with the stages that use them. Operators only used
+        // by stages that are already behind the current terminal level are not tracked at all.
+        var transitionStages = new Dictionary<string, (List<string> Stages, int ExpiresAt)>(StringComparer.Ordinal);
+        for (var i = 0; i < route.Stages.Count; i++)
+        {
+            var stage = route.Stages[i];
+            if (ReferenceEquals(stage, finalStage)) continue;
+            var expiresAt = route.ExpiresAt(i);
+            foreach (var op in stage.Operators.Where(o => !transforms.ContainsKey(o.Name)))
+            {
+                if (!transitionStages.TryGetValue(op.Name, out var info)) info = ([], -1);
+                info.Stages.Add(stage.Definition.Name);
+                // Kept as long as its latest stage is (0 = never expires wins).
+                var at = info.ExpiresAt == 0 || expiresAt == 0 ? 0 : Math.Max(info.ExpiresAt, expiresAt);
+                transitionStages[op.Name] = (info.Stages, at);
+            }
+        }
+        var level = TerminalLevel;
+        foreach (var (name, (stages, expiresAt)) in transitionStages)
+        {
+            var existing = TrackedOperators.FirstOrDefault(e => e.Name == name);
+            if (existing is { Role: TrackingRole.Final }) continue;
+            var entry = new TrackingEntry
+            {
+                Name = name, Type = TrackingType.Operator, Role = TrackingRole.Transition,
+                Stages = string.Join(" · ", stages), ExpiresAt = expiresAt
+            };
+            if (entry.ExpiredAt(level))
+            {
+                if (existing is not null) TrackedOperators.Remove(existing);
+                continue;
+            }
+            if (existing is null) { TrackedOperators.Add(entry); newTransition++; }
+            else TrackedOperators[TrackedOperators.IndexOf(existing)] = entry;
+        }
+        RefreshEquipmentRequirements();
+        return (newFinal, newTransition);
     }
 
     public void AddTracking(string name, TrackingType type)
@@ -62,11 +204,11 @@ public partial class TrackingViewModel : ObservableObject
             return;
         }
         if (!existing.IsAcquired && (type != TrackingType.Equipment || existing.IsManual)) return;
-        entries[entries.IndexOf(existing)] = new TrackingEntry
-        {
-            Name = name, Type = type, TransformedCovenant = existing.TransformedCovenant,
-            Equipments = [.. existing.Equipments], IsElite = existing.IsElite
-        };
+        // Tracked again (or an automatic equipment entry tracked by hand): keep 大成 / 过渡 and the stages.
+        var again = Copy(existing, existing.IsExpired);
+        again.IsAcquired = false;
+        again.IsManual = true;
+        entries[entries.IndexOf(existing)] = again;
         if (type == TrackingType.Operator) RefreshEquipmentRequirements();
     }
 
@@ -79,11 +221,9 @@ public partial class TrackingViewModel : ObservableObject
             AddTracking(name, entry.Type);
             return;
         }
-        entries[entries.IndexOf(entry)] = new TrackingEntry
-        {
-            Name = entry.Name, Type = entry.Type, IsAcquired = true, IsManual = entry.IsManual,
-            TransformedCovenant = entry.TransformedCovenant, Equipments = [.. entry.Equipments], IsElite = entry.IsElite
-        };
+        var acquired = Copy(entry, entry.IsExpired);
+        acquired.IsAcquired = true;
+        entries[entries.IndexOf(entry)] = acquired;
         if (entry.Type == TrackingType.Operator)
         {
             RefreshEquipmentRequirements();
@@ -113,12 +253,11 @@ public partial class TrackingViewModel : ObservableObject
     private void RemoveEquipmentRequirement(string name)
     {
         foreach (var entry in TrackedOperators.Where(e => e.Equipments.Contains(name)).ToList())
-            TrackedOperators[TrackedOperators.IndexOf(entry)] = new TrackingEntry
-            {
-                Name = entry.Name, Type = TrackingType.Operator, IsElite = entry.IsElite,
-                IsAcquired = entry.IsAcquired, TransformedCovenant = entry.TransformedCovenant,
-                Equipments = entry.Equipments.Where(e => e != name).ToList()
-            };
+        {
+            var without = Copy(entry, entry.IsExpired);
+            without.Equipments = entry.Equipments.Where(e => e != name).ToList();
+            TrackedOperators[TrackedOperators.IndexOf(entry)] = without;
+        }
     }
 
     public void ClearAllTracking()
@@ -136,11 +275,10 @@ public partial class TrackingViewModel : ObservableObject
             var index = equipmentRules.Transformations(slot).FindIndex(t => t.EquipmentName == equipmentName);
             equipmentRules.SetTransformation(slot, index, "");
         }
-        TrackedOperators[TrackedOperators.IndexOf(entry)] = new TrackingEntry
-        {
-            Name = name, Type = TrackingType.Operator, IsElite = entry.IsElite, Equipments = slot.Equipments,
-            IsAcquired = entry.IsAcquired
-        };
+        var cleared = Copy(entry, entry.IsExpired);
+        cleared.TransformedCovenant = null;
+        cleared.Equipments = slot.Equipments;
+        TrackedOperators[TrackedOperators.IndexOf(entry)] = cleared;
         RefreshEquipmentRequirements();
     }
 
@@ -166,11 +304,13 @@ public partial class TrackingViewModel : ObservableObject
         TrackedEquipment.Clear();
         foreach (var entry in entries)
         {
+            entry.Stages = RouteStageNames.Normalize(entry.Stages);
             if (entry.Type == TrackingType.Operator)
                 TrackedOperators.Add(entry);
             else
                 TrackedEquipment.Add(entry);
         }
         RefreshEquipmentRequirements();
+        RefreshExpiry();
     }
 }

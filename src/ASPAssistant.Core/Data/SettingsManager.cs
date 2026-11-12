@@ -73,6 +73,79 @@ public class SettingsManager
             JsonSerializer.Serialize(isLight));
     }
 
+    /// <summary>
+    /// Side panel theme + day/night. Older installs only have light-theme.json: its value becomes the night
+    /// choice of 终端 (the former only theme).
+    /// </summary>
+    public async Task<SidebarAppearance> LoadSidebarAppearanceAsync()
+    {
+        var path = Path.Combine(_settingsDir, "appearance.json");
+        try
+        {
+            if (File.Exists(path))
+                return JsonSerializer.Deserialize<SidebarAppearance>(await File.ReadAllTextAsync(path), ThemeJsonOptions) ?? new();
+        }
+        catch (JsonException)
+        {
+            AppLogger.Warn("Settings", "侧栏外观配置无法解析，使用默认值");
+            return new SidebarAppearance();
+        }
+        // Older installs followed the 模式主题 with 终端 at night unless light-theme.json said otherwise.
+        if (File.Exists(Path.Combine(_settingsDir, "light-theme.json")))
+            return new SidebarAppearance
+            {
+                FollowModeTheme = true,
+                Night = { [GameShopTheme.Terminal] = !await LoadLightThemeAsync() }
+            };
+        return new SidebarAppearance();
+    }
+
+    private sealed record SavedTerminalLevel(int Level, DateTime SavedAtUtc);
+
+    /// <summary>Terminal level of the current run, kept so restarting the app mid-run does not lose it.</summary>
+    public static readonly TimeSpan TerminalLevelMaxAge = TimeSpan.FromHours(2);
+
+    /// <summary>The saved level, or null when there is none or it is older than <see cref="TerminalLevelMaxAge"/>.</summary>
+    public async Task<int?> LoadTerminalLevelAsync(DateTime? nowUtc = null)
+    {
+        var path = Path.Combine(_settingsDir, "terminal-level.json");
+        try
+        {
+            if (!File.Exists(path)) return null;
+            var saved = JsonSerializer.Deserialize<SavedTerminalLevel>(await File.ReadAllTextAsync(path));
+            if (saved is null || saved.Level is < 1 or > 6) return null;
+            return (nowUtc ?? DateTime.UtcNow) - saved.SavedAtUtc <= TerminalLevelMaxAge ? saved.Level : null;
+        }
+        catch (Exception ex) when (ex is JsonException or IOException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Saves the run's level; 0 clears it (new run).</summary>
+    public async Task SaveTerminalLevelAsync(int level, DateTime? nowUtc = null)
+    {
+        var path = Path.Combine(_settingsDir, "terminal-level.json");
+        try
+        {
+            if (level <= 0) { if (File.Exists(path)) File.Delete(path); return; }
+            Directory.CreateDirectory(_settingsDir);
+            await File.WriteAllTextAsync(path,
+                JsonSerializer.Serialize(new SavedTerminalLevel(level, nowUtc ?? DateTime.UtcNow)));
+        }
+        catch (IOException ex)
+        {
+            AppLogger.Warn("Settings", $"终端等级保存失败：{ex.Message}");
+        }
+    }
+
+    public async Task SaveSidebarAppearanceAsync(SidebarAppearance appearance)
+    {
+        Directory.CreateDirectory(_settingsDir);
+        await File.WriteAllTextAsync(Path.Combine(_settingsDir, "appearance.json"),
+            JsonSerializer.Serialize(appearance, ThemeJsonOptions));
+    }
+
     public async Task<GameShopTheme?> LoadGameShopThemeAsync()
     {
         var path = Path.Combine(_settingsDir, "game-theme.json");
@@ -113,6 +186,35 @@ public class SettingsManager
         Directory.CreateDirectory(_settingsDir);
         await File.WriteAllTextAsync(Path.Combine(_settingsDir, "multiple-lineups.json"),
             JsonSerializer.Serialize(enabled));
+    }
+
+    /// <summary>Draw deployable cells and enemy routes over the game board (on by default).</summary>
+    public async Task<bool> LoadShowBoardOverlayAsync()
+    {
+        var path = Path.Combine(_settingsDir, "board-overlay.json");
+        if (!File.Exists(path)) return true;
+        try { return JsonSerializer.Deserialize<bool>(await File.ReadAllTextAsync(path)); }
+        catch (JsonException) { return true; }
+    }
+
+    public async Task SaveShowBoardOverlayAsync(bool enabled)
+    {
+        Directory.CreateDirectory(_settingsDir);
+        await File.WriteAllTextAsync(Path.Combine(_settingsDir, "board-overlay.json"), JsonSerializer.Serialize(enabled));
+    }
+
+    public async Task<DeployPoolState> LoadDeployPoolAsync()
+    {
+        var path = Path.Combine(_settingsDir, "deploy-pool.json");
+        if (!File.Exists(path)) return new DeployPoolState();
+        try { return JsonSerializer.Deserialize<DeployPoolState>(await File.ReadAllTextAsync(path), JsonOptions) ?? new(); }
+        catch (JsonException) { return new DeployPoolState(); }
+    }
+
+    public async Task SaveDeployPoolAsync(DeployPoolState state)
+    {
+        Directory.CreateDirectory(_settingsDir);
+        await File.WriteAllTextAsync(Path.Combine(_settingsDir, "deploy-pool.json"), JsonSerializer.Serialize(state, JsonOptions));
     }
 
     public async Task<SidePanelPositionSettings> LoadSidePanelPositionAsync()

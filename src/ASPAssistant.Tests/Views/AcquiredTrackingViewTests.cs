@@ -1,6 +1,5 @@
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -23,7 +22,7 @@ internal static class AcquiredTrackingViewTests
         const string equipmentName = "名字很长的测试防御装备";
         foreach (var light in new[] { false, true })
         {
-            ThemeManager.Apply(light);
+            ThemeManager.Apply(ASPAssistant.Core.Models.GameShopTheme.Terminal, !light);
             Operator[] operators = [new() { Name = operatorName, Tier = 5 }];
             Equipment[] equipment = [new() { Name = equipmentName, Categories = ["防御", "生命"] }];
             var vm = new TrackingViewModel();
@@ -41,96 +40,70 @@ internal static class AcquiredTrackingViewTests
             view.DataContext = vm;
             Layout(view);
 
-            var opCard = Descendants<OperatorCard>(view).Single();
-            var eqCard = Descendants<TrackedEquipmentCard>(view).Single();
-            foreach (var card in new UserControl[] { opCard, eqCard })
-            {
-                var acquire = (Button)card.FindName("AcquiredButton");
-                var remove = (Button)card.FindName("TrackButton");
-                acquire.IsEnabled.Should().BeTrue();
-                acquire.Visibility.Should().Be(Visibility.Visible);
-                acquire.TranslatePoint(new Point(acquire.ActualWidth, 0), card).X
-                    .Should().BeLessThanOrEqualTo(remove.TranslatePoint(new Point(), card).X);
-                remove.TranslatePoint(new Point(remove.ActualWidth, 0), view).X.Should().BeLessThanOrEqualTo(280);
-            }
-            ((TextBlock)eqCard.FindName("NameText")).ActualWidth.Should().BeGreaterThan(40);
-            Save(view, light ? "light-before" : "dark-before");
-
-            ((Button)opCard.FindName("AcquiredButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            ((Button)eqCard.FindName("AcquiredButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            // Operators: the cell's right-click menu toggles 已获取 and back.
+            ClickMenu(view, operatorName);
             Layout(view);
             vm.TrackedOperators.Should().HaveCount(2);
-            vm.TrackedEquipment.Should().HaveCount(2);
-            var acquiredOp = Descendants<OperatorCard>(view).Single();
-            var acquiredEq = Descendants<TrackedEquipmentCard>(view).Single();
-            acquiredOp.IsAcquired.Should().BeTrue();
-            acquiredOp.IsTracked.Should().BeFalse();
-            acquiredEq.IsAcquired.Should().BeTrue();
-            ((Button)acquiredOp.FindName("AcquiredButton")).IsEnabled.Should().BeTrue();
-            ((Button)acquiredEq.FindName("AcquiredButton")).IsEnabled.Should().BeTrue();
-            ((Button)acquiredOp.FindName("TrackButton")).IsEnabled.Should().BeTrue();
+            vm.IsTracked(operatorName).Should().BeFalse();
+            CellOf(view, operatorName).IsAcquired.Should().BeTrue();
+            CellOf(view, operatorName).Sub.Should().StartWith("已获取");
             Save(view, light ? "light-acquired" : "dark-acquired");
-            for (var cycle = 0; cycle < 2; cycle++)
-            {
-                ((Button)Descendants<OperatorCard>(view).Single().FindName("AcquiredButton"))
-                    .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                ((Button)Descendants<TrackedEquipmentCard>(view).Single().FindName("AcquiredButton"))
-                    .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                Layout(view);
-                vm.IsTracked(operatorName).Should().BeTrue();
-                vm.IsTracked(equipmentName).Should().BeTrue();
-                vm.AllEntries.Should().HaveCount(4);
-                ((Run)view.FindName("PendingOperatorCount")).Text.Should().Be("2");
-                ((Run)view.FindName("PendingEquipmentCount")).Text.Should().Be("2");
-                ((Button)Descendants<OperatorCard>(view).Single().FindName("AcquiredButton"))
-                    .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                ((Button)Descendants<TrackedEquipmentCard>(view).Single().FindName("AcquiredButton"))
-                    .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                Layout(view);
-                vm.IsTracked(operatorName).Should().BeFalse();
-                vm.IsTracked(equipmentName).Should().BeFalse();
-            }
+            ClickMenu(view, operatorName);
+            Layout(view);
+            vm.IsTracked(operatorName).Should().BeTrue();
+            CellOf(view, operatorName).IsAcquired.Should().BeFalse();
 
-
-            foreach (var name in new[] { "旧版已移除干员", "旧版已移除装备" })
+            // Equipment and names missing from the data use the same menu on their row.
+            foreach (var name in new[] { equipmentName, "旧版已移除干员", "旧版已移除装备" })
             {
-                Descendants<Button>(view).Single(b => b.Name == "AcquireUnknownButton"
-                    && ((TrackingEntry)b.DataContext).Name == name).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                Layout(view);
-                Descendants<TextBlock>(view).Should().Contain(t => t.Text == name);
-                Descendants<Button>(view).Single(b => b.Name == "AcquireUnknownButton"
-                    && ((TrackingEntry)b.DataContext).Name == name).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                Layout(view);
-                vm.IsTracked(name).Should().BeTrue();
-                Descendants<Button>(view).Single(b => b.Name == "AcquireUnknownButton"
-                    && ((TrackingEntry)b.DataContext).Name == name).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                ClickMenu(view, name);
                 Layout(view);
                 vm.IsTracked(name).Should().BeFalse();
+                ClickMenu(view, name);
+                Layout(view);
+                vm.IsTracked(name).Should().BeTrue();
+            }
+            vm.AllEntries.Should().HaveCount(4).And.OnlyContain(e => !e.IsAcquired);
+
+            foreach (var name in new[] { operatorName, equipmentName, "旧版已移除干员", "旧版已移除装备" })
+            {
+                ClickMenu(view, name);
+                Layout(view);
             }
             vm.AllEntries.Should().HaveCount(4).And.OnlyContain(e => e.IsAcquired);
-            ((Run)view.FindName("PendingOperatorCount")).Text.Should().Be("0");
-            ((Run)view.FindName("PendingEquipmentCount")).Text.Should().Be("0");
             ((FrameworkElement)view.FindName("EmptyState")).Visibility.Should().Be(Visibility.Collapsed);
             var shop = new List<ShopItem> { new() { Name = operatorName, IsTracked = true }, new() { Name = equipmentName, IsTracked = true } };
             GameStateUpdater.UpdateShopTracking(shop, vm.AllEntries.ToList());
             shop.Should().OnlyContain(i => !i.IsTracked);
 
+            // Tracking again resumes the row.
             vm.AddTracking(operatorName, TrackingType.Operator);
             vm.AddTracking(equipmentName, TrackingType.Equipment);
             Layout(view);
             vm.AllEntries.Should().HaveCount(4);
-            ((Run)view.FindName("PendingOperatorCount")).Text.Should().Be("1");
-            ((Run)view.FindName("PendingEquipmentCount")).Text.Should().Be("1");
-            ((Button)Descendants<OperatorCard>(view).Single().FindName("AcquiredButton")).IsEnabled.Should().BeTrue();
-            ((Button)Descendants<TrackedEquipmentCard>(view).Single().FindName("AcquiredButton")).IsEnabled.Should().BeTrue();
-            ((Button)Descendants<OperatorCard>(view).Single().FindName("TrackButton"))
-                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            ((Button)Descendants<TrackedEquipmentCard>(view).Single().FindName("TrackButton"))
-                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Layout(view);
-            vm.AllEntries.Select(e => e.Name).Should().BeEquivalentTo("旧版已移除干员", "旧版已移除装备");
+            vm.IsTracked(operatorName).Should().BeTrue();
+            vm.IsTracked(equipmentName).Should().BeTrue();
         }
-        ThemeManager.Apply(false);
+        ThemeManager.Apply(ASPAssistant.Core.Models.GameShopTheme.Terminal, true);
+    }
+
+    private static TrackedCell CellOf(FrameworkElement view, string name)
+        => Descendants<FrameworkElement>(view).Select(e => e.DataContext).OfType<TrackedCell>().First(c => c.Name == name);
+
+    /// <summary>Clicks the first item of the right-click menu on the row showing <paramref name="name"/>.</summary>
+    private static void ClickMenu(FrameworkElement view, string name)
+    {
+        var owner = Descendants<FrameworkElement>(view).First(e => e.ContextMenu is not null && e.DataContext switch
+        {
+            TrackedCell c => c.Name == name,
+            TrackingEntry t => t.Name == name,
+            _ => false
+        });
+        var menu = owner.ContextMenu!;
+        menu.PlacementTarget = owner;
+        menu.DataContext = owner.DataContext;
+        var item = menu.Items.OfType<MenuItem>().First();
+        item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent, item));
     }
 
     private static void Layout(FrameworkElement view)
