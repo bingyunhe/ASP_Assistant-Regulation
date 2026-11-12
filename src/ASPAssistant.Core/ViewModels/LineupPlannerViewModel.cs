@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -186,6 +188,31 @@ public sealed partial class PlannerVariantCell : ObservableObject
 }
 
 /// <summary>
+/// A saved lineup whose activated covenants (late-phase team) are all untouched by the current run's bans.
+/// Selectable so the player can track every operator of several surviving teams at once.
+/// </summary>
+public sealed partial class PlannerSavedLineupItem : ObservableObject
+{
+    private readonly Action<PlannerSavedLineupItem, bool>? _onSelectionChanged;
+
+    public PlannerSavedLineupItem(Action<PlannerSavedLineupItem, bool>? onSelectionChanged = null)
+        => _onSelectionChanged = onSelectionChanged;
+
+    public required Lineup Source { get; init; }
+    public string Id => Source.Id;
+    public string Name { get; init; } = "";
+    public IReadOnlyList<PlannerOperatorItem> Operators { get; init; } = [];
+    public IReadOnlyList<PlannerGoalPill> Covenants { get; init; } = [];
+    public string Summary { get; init; } = "";
+    public string ToolTip { get; init; } = "";
+
+    [ObservableProperty]
+    private bool _isSelected;
+
+    partial void OnIsSelectedChanged(bool value) => _onSelectionChanged?.Invoke(this, value);
+}
+
+/// <summary>
 /// State of the 规划 tab: covenant targets, locked operators, debounced/cancellable search and result browsing.
 /// </summary>
 public partial class LineupPlannerViewModel : ObservableObject
@@ -195,9 +222,13 @@ public partial class LineupPlannerViewModel : ObservableObject
 
     private readonly LineupPlanner _planner;
     private readonly BanViewModel _banVm;
+    private readonly LineupViewModel? _lineupVm;
     private readonly IReadOnlyList<Operator> _operators;
     private readonly Dictionary<string, Operator> _operatorByName;
     private IReadOnlySet<string> _availableCovenants = new HashSet<string>();
+    private ObservableCollection<Lineup>? _observedLineups;
+    private readonly HashSet<string> _selectedSavedLineupIds = new(StringComparer.Ordinal);
+    private bool _savedLineupsHaveActivatedTeams;
     private PlannerResult? _lastResult;
     private CancellationTokenSource? _cts;
     private bool _dirty;
@@ -205,11 +236,17 @@ public partial class LineupPlannerViewModel : ObservableObject
 
     private readonly LineupEquipmentService _equipmentRules;
 
-    public LineupPlannerViewModel(LineupPlanner planner, IReadOnlyList<Operator> operators, BanViewModel banVm, LineupEquipmentService equipmentRules)
+    public LineupPlannerViewModel(
+        LineupPlanner planner,
+        IReadOnlyList<Operator> operators,
+        BanViewModel banVm,
+        LineupEquipmentService equipmentRules,
+        LineupViewModel? lineupVm = null)
     {
         _equipmentRules = equipmentRules;
         _planner = planner;
         _banVm = banVm;
+        _lineupVm = lineupVm;
         _operators = operators.Where(o => o.RequiredStrategyId.Length == 0).ToList();
         _operatorByName = _operators.GroupBy(o => o.Name).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         foreach (var c in planner.Covenants)
@@ -218,6 +255,11 @@ public partial class LineupPlannerViewModel : ObservableObject
         foreach (var p in PeopleOptions)
             foreach (var t in TransformOptions)
                 VariantCells.Add(new PlannerVariantCell { People = p, Transforms = t });
+        if (_lineupVm is not null)
+        {
+            _lineupVm.PropertyChanged += OnLineupViewModelPropertyChanged;
+            ObserveSavedLineups(_lineupVm.Lineups);
+        }
         banVm.BansChanged += OnBansChanged;
         ApplyBans();
         UpdateStatus();
@@ -238,6 +280,7 @@ public partial class LineupPlannerViewModel : ObservableObject
     public ObservableCollection<Operator> LockSuggestions { get; } = [];
     public ObservableCollection<PlannerVariantCell> VariantCells { get; } = [];
     public ObservableCollection<PlannerLineupItem> VisibleLineups { get; } = [];
+    public ObservableCollection<PlannerSavedLineupItem> MatchingLineups { get; } = [];
     public ObservableCollection<string> GoalChips { get; } = [];
 
     public IEnumerable<PlannerCovenantItem> AllCovenants => CoreCovenants.Concat(ExtraCovenants);
@@ -246,6 +289,8 @@ public partial class LineupPlannerViewModel : ObservableObject
     public event Action<Lineup>? SaveRequested;
     /// <summary>Raised when the player tracks a candidate.</summary>
     public event Action<Lineup>? TrackRequested;
+    /// <summary>Raised when the player tracks the saved lineups selected on the ban board.</summary>
+    public event Action<IReadOnlyList<Lineup>>? TrackSavedLineupsRequested;
     /// <summary>Supplies the currently tracked operator names for “从追踪导入”.</summary>
     public Func<IEnumerable<string>>? TrackedOperatorsProvider { get; set; }
 
@@ -266,10 +311,34 @@ public partial class LineupPlannerViewModel : ObservableObject
     public bool HasGoals => SelectedGoalCount > 0;
     public bool HasLocked => LockedOperators.Count > 0;
     public bool HasVisibleLineups => VisibleLineups.Count > 0;
+    public bool HasMatchingLineups => MatchingLineups.Count > 0;
+    public string MatchingLineupSummary =>
+        HasRunInfo && _lineupVm is not null ? $"符合 {MatchingLineups.Count} / {_lineupVm.Lineups.Count}" : "";
+    public string MatchingLineupHint
+    {
+        get
+        {
+            if (!HasRunInfo)
+                return "扫描本局信息后，自动列出后期阵容的激活盟约全部未被禁用的已保存阵容。";
+            if (_lineupVm is null || _lineupVm.Lineups.Count == 0)
+                return "还没有保存过阵容，先在“阵容”页创建一套队伍。";
+            if (MatchingLineups.Count > 0) return "";
+            return _savedLineupsHaveActivatedTeams
+                ? "没有完全符合的阵容：有激活盟约的阵容都包含被本局禁用的盟约。"
+                : "没有可用的已保存阵容：这些阵容的后期阶段还没有激活盟约。";
+        }
+    }
     public string EmptyResultText => SelectedGoalCount == 0 ? "先在“目标”里选择盟约。"
         : IsBusy ? "正在搜索…"
         : HasError ? StatusText
         : "这一组没有可行组合，可以换一格看看，或减少目标、增加转职。";
+    public int SelectedMatchingLineupCount => MatchingLineups.Count(l => l.IsSelected);
+    public bool HasSelectedMatchingLineups => SelectedMatchingLineupCount > 0;
+    public string TrackSelectedText => SelectedMatchingLineupCount > 0
+        ? $"追踪已选阵容 ({SelectedMatchingLineupCount})"
+        : "追踪已选阵容";
+    public string SelectAllMatchingText =>
+        MatchingLineups.Count > 0 && MatchingLineups.All(l => l.IsSelected) ? "取消全选" : "全选";
     public string GoalTabText => SelectedGoalCount > 0 ? $"目标 · 已选 {SelectedGoalCount}" : "目标";
     public string ResultTabText => TotalResults > 0 ? $"结果 {TotalResults}" : "结果";
     public string ViewResultsText => TotalResults > 0 ? $"查看 {TotalResults} 套 →" : "查看结果 →";
@@ -401,6 +470,38 @@ public partial class LineupPlannerViewModel : ObservableObject
         if (item is not null) TrackRequested?.Invoke(item.ToLineup(_equipmentRules));
     }
 
+    [RelayCommand]
+    private void ToggleSelectAllMatching()
+    {
+        var select = !MatchingLineups.All(l => l.IsSelected);
+        foreach (var item in MatchingLineups) item.IsSelected = select;
+        NotifyMatchingSelectionChanged();
+    }
+
+    [RelayCommand]
+    private void TrackSelectedSavedLineups()
+    {
+        var selected = MatchingLineups.Where(l => l.IsSelected).Select(l => l.Source).ToList();
+        if (selected.Count == 0) return;
+        TrackSavedLineupsRequested?.Invoke(selected);
+    }
+
+    private void OnSavedLineupSelectionChanged(PlannerSavedLineupItem item, bool selected)
+    {
+        if (!MatchingLineups.Contains(item)) return;
+        if (selected) _selectedSavedLineupIds.Add(item.Id);
+        else _selectedSavedLineupIds.Remove(item.Id);
+        NotifyMatchingSelectionChanged();
+    }
+
+    private void NotifyMatchingSelectionChanged()
+    {
+        OnPropertyChanged(nameof(SelectedMatchingLineupCount));
+        OnPropertyChanged(nameof(HasSelectedMatchingLineups));
+        OnPropertyChanged(nameof(TrackSelectedText));
+        OnPropertyChanged(nameof(SelectAllMatchingText));
+    }
+
     private void RemoveLocked(PlannerLockedOperator item)
     {
         if (!LockedOperators.Remove(item)) return;
@@ -418,6 +519,7 @@ public partial class LineupPlannerViewModel : ObservableObject
         foreach (var c in AllCovenants) c.IsAvailable = _availableCovenants.Contains(c.Name);
         ApplyVisibility();
         UpdateRunInfo();
+        RefreshMatchingLineups();
     }
 
     private void OnBansChanged()
@@ -442,6 +544,7 @@ public partial class LineupPlannerViewModel : ObservableObject
         if (goalDropped) RefreshGoalChips();
         RefreshMembers();
         UpdateRunInfo();
+        RefreshMatchingLineups();
     }
 
     private void RefreshMembers()
@@ -458,6 +561,97 @@ public partial class LineupPlannerViewModel : ObservableObject
         }
     }
 
+    // ── Saved lineups that survive the current bans ─────────────────────────
+
+    private void OnLineupViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(LineupViewModel.Lineups)) return;
+        ObserveSavedLineups(_lineupVm!.Lineups);
+        RefreshMatchingLineups();
+    }
+
+    private void ObserveSavedLineups(ObservableCollection<Lineup>? lineups)
+    {
+        if (ReferenceEquals(_observedLineups, lineups)) return;
+        if (_observedLineups is not null)
+            _observedLineups.CollectionChanged -= OnSavedLineupsChanged;
+        _observedLineups = lineups;
+        if (_observedLineups is not null)
+            _observedLineups.CollectionChanged += OnSavedLineupsChanged;
+    }
+
+    private void OnSavedLineupsChanged(object? sender, NotifyCollectionChangedEventArgs e) => RefreshMatchingLineups();
+
+    /// <summary>
+    /// Rebuilds the saved-lineup board: keep a lineup only when every covenant activated by its
+    /// late-phase team (<see cref="Lineup.Slots"/>) is untouched by the current run's covenant bans.
+    /// Nothing is listed until the run's ban information has been recorded.
+    /// </summary>
+    public void RefreshMatchingLineups()
+    {
+        MatchingLineups.Clear();
+        _savedLineupsHaveActivatedTeams = false;
+        if (_lineupVm is not null && HasRunInfo)
+        {
+            var banned = _banVm.BannedCovenants;
+            foreach (var lineup in _lineupVm.Lineups)
+            {
+                var activated = _lineupVm.Calculator.Compute(lineup).Where(s => s.Activated).ToList();
+                if (activated.Count == 0) continue;
+                _savedLineupsHaveActivatedTeams = true;
+                if (activated.Any(s => banned.Contains(s.Name))) continue;
+                MatchingLineups.Add(BuildSavedLineupItem(lineup, activated));
+            }
+        }
+        OnPropertyChanged(nameof(HasMatchingLineups));
+        OnPropertyChanged(nameof(MatchingLineupHint));
+        OnPropertyChanged(nameof(MatchingLineupSummary));
+        NotifyMatchingSelectionChanged();
+    }
+
+    private PlannerSavedLineupItem BuildSavedLineupItem(Lineup lineup, IReadOnlyList<CovenantStat> activated)
+    {
+        var ops = new List<PlannerOperatorItem>();
+        foreach (var slot in lineup.Slots)
+        {
+            if (string.IsNullOrEmpty(slot.OperatorName)) continue;
+            _operatorByName.TryGetValue(slot.OperatorName, out var op);
+            var tip = op is null
+                ? $"{slot.OperatorName}\n干员资料未收录"
+                : $"{slot.OperatorName}\n原生：{string.Join("、", op.CoreCovenants.Concat(op.AdditionalCovenants))}";
+            var transformations = _equipmentRules.Transformations(slot);
+            if (transformations.Count > 0)
+                tip += $"\n转职 → {string.Join("、", transformations.Select(t => t.Covenant))}";
+            ops.Add(new PlannerOperatorItem
+            {
+                Name = slot.OperatorName,
+                IconPath = op?.IconPath ?? "",
+                Operator = op,
+                ToolTip = tip,
+                Sub = transformations.Count > 0
+                    ? $"转→{string.Join("、", transformations.Select(t => t.Covenant))}"
+                    : "",
+            });
+        }
+        var chips = activated
+            .OrderByDescending(s => s.Count)
+            .ThenBy(s => s.Name, StringComparer.Ordinal)
+            .Select(s => new PlannerGoalPill($"{s.Name} {s.Count}/{s.ActivateCount}", false))
+            .ToList();
+        var covenantText = string.Join("、", chips.Select(c => c.Text));
+        var displayName = string.IsNullOrWhiteSpace(lineup.Name) ? "未命名阵容" : lineup.Name;
+        return new PlannerSavedLineupItem(OnSavedLineupSelectionChanged)
+        {
+            Source = lineup,
+            IsSelected = _selectedSavedLineupIds.Contains(lineup.Id),
+            Name = displayName,
+            Operators = ops,
+            Covenants = chips,
+            Summary = $"{ops.Count} 人 · {activated.Count} 个盟约未禁用",
+            ToolTip = $"{displayName}\n后期阵容的激活盟约：{covenantText}",
+        };
+    }
+
     private void ApplyVisibility()
     {
         var filter = OnlyCurrentRun && _availableCovenants.Count > 0;
@@ -472,6 +666,8 @@ public partial class LineupPlannerViewModel : ObservableObject
         RunInfoText = HasRunInfo
             ? $"已读取本局盟约 · {banned} 个被 Ban"
             : "未录入本局信息 · 开局信息页可截屏录入";
+        OnPropertyChanged(nameof(MatchingLineupHint));
+        OnPropertyChanged(nameof(MatchingLineupSummary));
     }
 
     private void OnToggleLevel(PlannerCovenantItem item, int level)

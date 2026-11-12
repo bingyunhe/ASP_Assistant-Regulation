@@ -23,6 +23,16 @@ public partial class LineupPlannerView : UserControl
         if (Vm is { } vm) vm.IsActive = IsVisible;
     }
 
+    /// <summary>The whole saved-lineup card is the selection target; there is no separate checkbox.</summary>
+    private void OnSavedLineupCardClick(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: PlannerSavedLineupItem item })
+        {
+            item.IsSelected = !item.IsSelected;
+            e.Handled = true;
+        }
+    }
+
     private void OnLockSearchKeyDown(object sender, KeyEventArgs e)
     {
         if (Vm is not { } vm) return;

@@ -275,6 +275,66 @@ public class LineupEditorViewModelTests
     }
 
     [Fact]
+    public void CopyPhase_CopiesOperatorsEquipmentTagsAndTransformationIntoCurrentPhase()
+    {
+        var source = Source();
+        source.EarlySlots =
+        [
+            new()
+            {
+                OperatorName = "前期干员", Equipments = ["前期装备"], CoreEquipments = ["前期装备"],
+                Tags = [LineupTag.输出], TransformedCovenant = "乌萨斯",
+            },
+            new() { OperatorName = "角峰" },
+        ];
+        source.MidSlots = [new() { OperatorName = "旧中期", Equipments = ["旧装备"] }];
+        var vm = Create(source);
+        vm.SelectPhase(LineupPhase.中期);
+        vm.PhaseFilledCount(LineupPhase.前期).Should().Be(2);
+
+        vm.CopyPhase(LineupPhase.前期, LineupPhase.中期).Should().Be(2);
+
+        vm.Slots[0].OperatorName.Should().Be("前期干员");
+        vm.Slots[0].Equipments.Should().Equal("前期装备");
+        vm.Slots[0].CoreEquipments.Should().Equal("前期装备");
+        vm.Slots[0].Tags.Should().Equal(LineupTag.输出);
+        vm.Slots[0].TransformedCovenant.Should().Be("乌萨斯");
+        vm.Slots[1].OperatorName.Should().Be("角峰");
+        vm.Slots.Skip(2).Should().OnlyContain(s => s.OperatorName == "");
+        vm.FilledSlotCount.Should().Be(2);
+        vm.ActivatedCount.Should().Be(1);
+        var exported = vm.ToLineup();
+        exported.MidSlots.Should().BeEquivalentTo(exported.EarlySlots);
+        exported.EarlySlots[0].Equipments.Should().Equal("前期装备");
+    }
+
+    [Fact]
+    public void CopyPhase_LeavesOtherPhasesUntouchedAndResetRestoresTarget()
+    {
+        var source = Source();
+        source.EarlySlots = [new() { OperatorName = "前期干员" }];
+        source.MidSlots = [new() { OperatorName = "中期干员" }];
+        var vm = Create(source);
+        vm.SelectPhase(LineupPhase.后期);
+        vm.CopyPhase(LineupPhase.中期, LineupPhase.后期).Should().Be(1);
+        vm.Slots[0].OperatorName.Should().Be("中期干员");
+        vm.SelectPhase(LineupPhase.中期);
+        vm.Slots[0].OperatorName.Should().Be("中期干员");
+        vm.CopyPhase(LineupPhase.前期, LineupPhase.中期).Should().Be(1);
+        vm.Slots[0].OperatorName.Should().Be("前期干员");
+        vm.CopyPhase(LineupPhase.中期, LineupPhase.中期).Should().Be(0);
+        vm.Slots[0].OperatorName.Should().Be("前期干员");
+
+        vm.Reset();
+
+        vm.CurrentPhase.Should().Be(LineupPhase.后期);
+        var restored = vm.ToLineup();
+        restored.EarlySlots.Single().OperatorName.Should().Be("前期干员");
+        restored.MidSlots.Single().OperatorName.Should().Be("中期干员");
+        restored.Slots.Single().OperatorName.Should().Be("角峰");
+    }
+
+    [Fact]
     public async Task FourPhases_RoundTripLocalStoreShareExportAndImport()
     {
         var directory = Path.Combine(Path.GetTempPath(), $"lineup_phases_{Guid.NewGuid():N}");

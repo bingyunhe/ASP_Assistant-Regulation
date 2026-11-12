@@ -111,6 +111,55 @@ public partial class LineupEditorWindow : Window
         RefreshEditor();
     }
 
+    // ── Copy from previous phase ────────────────────────────────────────────
+
+    /// <summary>中期从前期复制、后期从中期复制；前期和策略页没有可复制的来源。</summary>
+    private static LineupPhase? CopySourcePhase(LineupPhase phase) => phase switch
+    {
+        LineupPhase.中期 => LineupPhase.前期,
+        LineupPhase.后期 => LineupPhase.中期,
+        _ => null,
+    };
+
+    private void RefreshCopyPhaseButton()
+    {
+        if (_editingStrategies || CopySourcePhase(_vm.CurrentPhase) is not { } source)
+        {
+            CopyPhaseButton.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var filled = _vm.PhaseFilledCount(source);
+        CopyPhaseButton.Content = $"复制{source}";
+        CopyPhaseButton.Visibility = Visibility.Visible;
+        CopyPhaseButton.IsEnabled = filled > 0;
+        CopyPhaseButton.ToolTip = filled > 0
+            ? $"把{source}已选的 {filled} 名干员（含装备、标签和转职）复制到{_vm.CurrentPhase}"
+            : $"{source}还没有选择干员";
+    }
+
+    private void OnCopyPhaseClick(object sender, RoutedEventArgs e)
+    {
+        if (_editingStrategies || CopySourcePhase(_vm.CurrentPhase) is not { } source)
+            return;
+
+        var target = _vm.CurrentPhase;
+        var filled = _vm.PhaseFilledCount(source);
+        if (filled == 0) return;
+
+        var overwritten = _vm.FilledSlotCount;
+        if (overwritten > 0 &&
+            MessageBox.Show(this,
+                $"将用{source}已选的 {filled} 名干员覆盖{target}当前的 {overwritten} 名干员" +
+                "（含装备、标签和转职）。是否继续？",
+                "确认复制", MessageBoxButton.YesNo, MessageBoxImage.Question,
+                MessageBoxResult.No) != MessageBoxResult.Yes)
+            return;
+
+        _vm.CopyPhase(source, target);
+        RefreshEditor();
+    }
+
     // ── Slot card construction ──────────────────────────────────────────────
 
     private readonly List<Border> _slotCards = [];
@@ -564,6 +613,7 @@ public partial class LineupEditorWindow : Window
 
     private void RefreshCovenantPanel()
     {
+        RefreshCopyPhaseButton();
         ActivatedSummaryText.Text = _editingStrategies
             ? $"已选 {_vm.StrategySlots.Count(s => s.StrategyId.Length > 0)}/9 策略"
             : $"激活 {_vm.ActivatedCount} 个盟约 · 已选 {_vm.FilledSlotCount}/9 干员";
@@ -571,7 +621,7 @@ public partial class LineupEditorWindow : Window
         CovenantStatsList.ItemsSource = null;
         CovenantStatsList.ItemsSource = _vm.ActiveStats;
         EditorHint.Text = _vm.ValidationError.Length > 0 ? _vm.ValidationError :
-            $"正在编辑：{(_editingStrategies ? "策略" : _vm.CurrentPhase.ToString())} · 列表预览与追踪使用后期阵容";
+            $"正在编辑：{(_editingStrategies ? "策略" : _vm.CurrentPhase.ToString())} · 列表预览使用后期阵容，追踪合并四阶段";
         EditorHint.ToolTip = _vm.ValidationError.Length > 0 ? _vm.ValidationError : null;
         EditorHint.SetResourceReference(TextBlock.ForegroundProperty, _vm.ValidationError.Length > 0 ? "DangerBrush" : "TextSecondaryBrush");
     }

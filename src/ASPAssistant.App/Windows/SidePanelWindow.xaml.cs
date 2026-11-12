@@ -769,7 +769,7 @@ public partial class SidePanelWindow : Window
         {
             try
             {
-                var added = TrackingVm.TrackLineup(lineup);
+                var added = TrackingVm.TrackSavedLineup(lineup);
                 ShowToast($"已追踪阵容“{lineup.Name}”：新增 {added.Operators} 干员 / {added.Equipment} 装备");
             }
             catch (Exception ex)
@@ -782,7 +782,7 @@ public partial class SidePanelWindow : Window
 
     private void WirePlannerView()
     {
-        PlannerVm = new LineupPlannerViewModel(_lineupPlanner, _allOperators, BanVm, LineupVm.Calculator.EquipmentRules)
+        PlannerVm = new LineupPlannerViewModel(_lineupPlanner, _allOperators, BanVm, LineupVm.Calculator.EquipmentRules, LineupVm)
         {
             TrackedOperatorsProvider = () => TrackingVm.TrackedOperators.Select(e => e.Name).ToList(),
             RunOnUiThread = action =>
@@ -813,6 +813,38 @@ public partial class SidePanelWindow : Window
             }
             catch (Exception ex)
             {
+                ShowToast($"追踪失败：{ex.Message}");
+            }
+        };
+        PlannerVm.TrackSavedLineupsRequested += lineups =>
+        {
+            try
+            {
+                if (lineups.Count == 1)
+                {
+                    // One team: use the phase-aware path so the tracking tab shows 前期/中期/后期.
+                    var lineup = lineups[0];
+                    var added = TrackingVm.TrackSavedLineup(lineup);
+                    AppLogger.Info("Tracking",
+                        $"Board tracked saved lineup '{lineup.Name}' phase={TrackingVm.SourcePhase} " +
+                        $"added={added.Operators} operators / {added.Equipment} equipment");
+                    ShowToast($"已追踪阵容“{lineup.Name}”：新增 {added.Operators} 名干员 / {added.Equipment} 件装备");
+                    return;
+                }
+
+                var replace = !TrackingVm.TrackMultipleLineups;
+                var count = TrackingVm.TrackLineupsOperators(lineups);
+                AppLogger.Info("Tracking",
+                    $"Board batch tracked {lineups.Count} saved lineups: added={count} operators");
+                ShowToast(count > 0
+                    ? replace
+                        ? $"已用所选阵容的 {count} 名干员替换追踪列表"
+                        : $"已追踪 {count} 名干员（来自 {lineups.Count} 套阵容）"
+                    : $"所选 {lineups.Count} 套阵容的干员已在追踪列表中");
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Warn("Tracking", $"Board tracking failed: {ex.Message}");
                 ShowToast($"追踪失败：{ex.Message}");
             }
         };

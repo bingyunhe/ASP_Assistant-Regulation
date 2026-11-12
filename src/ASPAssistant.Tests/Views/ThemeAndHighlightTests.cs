@@ -615,6 +615,78 @@ public class ThemeAndHighlightTests
                                 content.Measure(new Size(310, 900));
                                 content.Arrange(new Rect(0, 0, 310, 900));
                                 content.UpdateLayout();
+
+                                // 扫描本局信息后，“符合本局的阵容”只列出后期激活盟约全部未被禁用的已保存阵容。
+                                var targetCovenant = covenants
+                                    .Where(c => c.BondType == "SEASON" && c.ActivateCount is > 0)
+                                    .Select(c => (Covenant: c, Holders: operators
+                                        .Where(o => o.CoreCovenants.Contains(c.Name))
+                                        .Take(c.ActivateCount!.Value).ToList()))
+                                    .First(x => x.Holders.Count == x.Covenant.ActivateCount);
+                                var boardLineup = new Lineup
+                                {
+                                    Name = "本局符合阵容",
+                                    Slots = targetCovenant.Holders
+                                        .Select(o => new LineupSlot { OperatorName = o.Name }).ToList(),
+                                };
+                                lineupVm.LoadLineups([boardLineup]);
+                                var boardStats = lineupVm.Calculator.Compute(boardLineup);
+                                var unusedCovenant = covenants
+                                    .First(c => boardStats.All(s => s.Name != c.Name || !s.Activated)).Name;
+                                sidePanel.BanVm.SetCovenantBans([unusedCovenant]);
+                                sidePanel.PlannerVm.SetAvailableCovenants([targetCovenant.Covenant.Name]);
+                                sidePanel.PlannerVm.MatchingLineups.Should()
+                                    .ContainSingle(l => l.Name == "本局符合阵容")
+                                    .Which.Covenants.Should().Contain(c => c.Text.StartsWith(targetCovenant.Covenant.Name + " "));
+                                content.UpdateLayout();
+                                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                                var boardCard = Descendants<Border>(plannerView)
+                                    .Single(b => b.Tag as string == "SavedLineupCard");
+                                Descendants<CheckBox>(boardCard).Should().BeEmpty(
+                                    "the whole saved-lineup card is the selection target");
+                                boardCard.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left)
+                                {
+                                    RoutedEvent = UIElement.MouseLeftButtonUpEvent,
+                                });
+                                content.UpdateLayout();
+                                sidePanel.PlannerVm.SelectedMatchingLineupCount.Should().Be(1);
+                                ((SolidColorBrush)boardCard.Background).Color.Should()
+                                    .Be(((SolidColorBrush)application.FindResource("InputBackgroundBrush")).Color,
+                                        "selecting a team uses the darker input background");
+                                var trackSelectedButton = Descendants<Button>(plannerView)
+                                    .Single(b => (b.Content as string ?? "").StartsWith("追踪已选阵容"));
+                                trackSelectedButton.IsEnabled.Should().BeTrue();
+                                var goalScroller = Descendants<ScrollViewer>(plannerView)
+                                    .First(s => s.Visibility == Visibility.Visible);
+                                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                                goalScroller.ScrollToEnd();
+                                content.UpdateLayout();
+                                Save(content, Path.Combine(output, isLight ? "light-planner-matching.png" : "dark-planner-matching.png"));
+
+                                trackSelectedButton.Command.Should().Be(sidePanel.PlannerVm.TrackSelectedSavedLineupsCommand);
+                                var previousTracked = trackingVm.AllEntries.ToList();
+                                var previousMultiple = trackingVm.TrackMultipleLineups;
+                                try
+                                {
+                                    trackSelectedButton.Command.Execute(trackSelectedButton.CommandParameter);
+                                    trackingVm.TrackedOperators.Select(e => e.Name).Should()
+                                        .Contain(targetCovenant.Holders.Select(o => o.Name),
+                                            "tracking the selected saved lineup must add all of its late-phase operators");
+                                    trackingVm.HasSourceLineup.Should().BeTrue(
+                                        "a single selected team drives the tracking tab's phase switch");
+                                    trackingVm.SourceLineupName.Should().Be("本局符合阵容");
+                                    trackingVm.SourcePhase.Should().BeNull(
+                                        "the saved lineup opens in the merged four-phase view");
+                                }
+                                finally
+                                {
+                                    trackingVm.LoadEntries(previousTracked);
+                                    trackingVm.TrackMultipleLineups = previousMultiple;
+                                }
+
+                                sidePanel.BanVm.SetCovenantBans([targetCovenant.Covenant.Name]);
+                                sidePanel.PlannerVm.MatchingLineups.Should().BeEmpty(
+                                    "a banned activated covenant must remove the saved lineup from the board");
                             }
                             if (page is EnemyView enemyView)
                             {
@@ -964,6 +1036,54 @@ public class ThemeAndHighlightTests
                                     trackingVm.LoadEntries(previousEntries);
                                     trackingVm.TrackMultipleLineups = multipleLineups;
                                 }
+
+                                // 追踪自己的阵容后，可以在前期/中期/后期之间切换追踪目标。
+                                var phaseLineup = new Lineup
+                                {
+                                    Name = "阶段切换阵容",
+                                    EarlySlots = [new() { OperatorName = "角峰" }],
+                                    MidSlots = [new() { OperatorName = "隐现" }],
+                                    Slots = [new() { OperatorName = "灰喉" }],
+                                };
+                                var phaseEntries = trackingVm.AllEntries.ToList();
+                                var phaseMultiple = trackingVm.TrackMultipleLineups;
+                                try
+                                {
+                                    trackingVm.TrackSavedLineup(phaseLineup);
+                                    content.UpdateLayout();
+                                    ((Border)trackingView.FindName("LineupSourcePanel")).Visibility
+                                        .Should().Be(Visibility.Visible);
+                                    ((TextBlock)trackingView.FindName("LineupSourceName")).Text.Should().Be("阶段切换阵容");
+                                    var earlyPhase = (Button)trackingView.FindName("EarlyPhaseButton");
+                                    var latePhase = (Button)trackingView.FindName("LatePhaseButton");
+                                    var allPhases = (Button)trackingView.FindName("AllPhasesButton");
+                                    foreach (var phaseButton in new[] { earlyPhase, latePhase, allPhases })
+                                        (phaseButton.TranslatePoint(new Point(), trackingView).X + phaseButton.ActualWidth)
+                                            .Should().BeLessThanOrEqualTo(trackingView.ActualWidth,
+                                                "the four phase buttons must fit the side panel at 90%/100% scaling");
+                                    allPhases.Tag.Should().Be("tracked");
+                                    latePhase.Tag.Should().BeNull();
+                                    earlyPhase.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                                    content.UpdateLayout();
+                                    trackingVm.SourcePhase.Should().Be(LineupPhase.前期);
+                                    earlyPhase.Tag.Should().Be("tracked");
+                                    latePhase.Tag.Should().BeNull();
+                                    allPhases.Tag.Should().BeNull();
+                                    trackingVm.TrackedOperators.Select(e => e.Name).Should().Contain("角峰");
+                                    trackingVm.TrackedOperators.Select(e => e.Name).Should().NotContain("灰喉");
+                                    Save(content, Path.Combine(output, isLight ? "light-tracking-phase.png" : "dark-tracking-phase.png"));
+                                    allPhases.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                                    content.UpdateLayout();
+                                    trackingVm.SourcePhase.Should().BeNull("「全部」returns to the merged four-phase view");
+                                    allPhases.Tag.Should().Be("tracked");
+                                    trackingVm.TrackedOperators.Select(e => e.Name).Should().Contain("灰喉");
+                                    trackingVm.TrackedOperators.Select(e => e.Name).Should().Contain("隐现");
+                                }
+                                finally
+                                {
+                                    trackingVm.LoadEntries(phaseEntries);
+                                    trackingVm.TrackMultipleLineups = phaseMultiple;
+                                }
                                 sidePanel.Width = 310;
                                 content.Measure(new Size(310, 900));
                                 content.Arrange(new Rect(0, 0, 310, 900));
@@ -1119,6 +1239,28 @@ public class ThemeAndHighlightTests
                             cancelTransform.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                             editorVm.ToLineup().Slots.Single().Equipments.Should().BeEmpty();
                             editorVm.ActiveStats.Should().NotContain(s => s.Name == "炎");
+                            // 复制上一阶段：前期不显示按钮，中期复制前期，后期按钮指向中期。
+                            var copyButton = (Button)editor.FindName("CopyPhaseButton");
+                            ((Button)phaseTabs.Children[0]).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                            copyButton.Visibility.Should().Be(Visibility.Collapsed);
+                            editorVm.SetSlotOperator(0, "角峰");
+                            ((Button)phaseTabs.Children[1]).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                            copyButton.Visibility.Should().Be(Visibility.Visible);
+                            copyButton.Content.Should().Be("复制前期");
+                            copyButton.IsEnabled.Should().BeTrue();
+                            copyButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                            editorVm.Slots[0].OperatorName.Should().Be("角峰");
+                            editorContent.Measure(new Size(980, 660));
+                            editorContent.Arrange(new Rect(0, 0, 980, 660));
+                            editorContent.UpdateLayout();
+                            Descendants<TextBlock>((Border)slots.Items[0]).Should().Contain(t => t.Text == "角峰");
+                            Save(editorContent, Path.Combine(output, isLight ? "light-editor-copy-phase.png" : "dark-editor-copy-phase.png"));
+                            ((Button)phaseTabs.Children[2]).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                            copyButton.Visibility.Should().Be(Visibility.Visible);
+                            copyButton.Content.Should().Be("复制中期");
+
+                            // 上游 v1.6.0：暴躁铁皮 6 装备 / 5 转职 + 精锐启用。
+                            editorVm.SelectPhase(LineupPhase.后期);
                             editorVm.SetStrategy(0, "band_mech");
                             editorVm.SetSlotOperator(0, LineupEquipmentService.MechName);
                             ((Button)phaseTabs.Children[2]).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

@@ -243,6 +243,34 @@ public partial class LineupEditorViewModel : ObservableObject
         Recalculate();
     }
 
+    /// <summary>某个阶段已填的干员数（空槽位不计）。</summary>
+    public int PhaseFilledCount(LineupPhase phase) =>
+        _phaseSlots[phase].Count(s => !string.IsNullOrEmpty(s.OperatorName));
+
+    /// <summary>
+    /// 把 <paramref name="source"/> 阶段的 9 个槽位整体复制到 <paramref name="target"/> 阶段，
+    /// 包括装备、核心装备、标签和计划转职；目标阶段原有内容被覆盖，槽位顺序与源阶段一致。
+    /// 返回复制的干员数。
+    /// </summary>
+    public int CopyPhase(LineupPhase source, LineupPhase target)
+    {
+        if (source == target) return 0;
+
+        var sourceSlots = _phaseSlots[source];
+        var targetSlots = _phaseSlots[target];
+        var copied = 0;
+        for (var i = 0; i < MaxSlots; i++)
+        {
+            var slot = i < sourceSlots.Count ? CloneSlot(sourceSlots[i]) : new LineupSlot();
+            if (!string.IsNullOrEmpty(slot.OperatorName))
+                copied++;
+            targetSlots[i] = slot;
+        }
+        if (CurrentPhase == target)
+            Recalculate();
+        return copied;
+    }
+
     public void SetStrategy(int slotIndex, string strategyId)
     {
         StrategySlots[slotIndex] = new LineupStrategySlot
