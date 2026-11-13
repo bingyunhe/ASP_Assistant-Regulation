@@ -5,16 +5,33 @@ on:
     branches:
       - main
       - dev
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/pr-tests.yml'
+      - '.github/workflows/release.yml'
+      - 'src/**/*.csproj'
+      - '**/*.props'
+      - '**/*.targets'
+      - '**/packages.lock.json'
+      - '**/nuget.config'
+      - '**/NuGet.Config'
+      - 'global.json'
+
+env:
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   test:
+    if: github.event_name == 'pull_request'
     name: Windows .NET tests
     runs-on: windows-latest
     timeout-minutes: 20
@@ -41,9 +58,15 @@ jobs:
         shell: pwsh
         run: ./.github/scripts/Test-ReleaseTestReuse.ps1
       - name: Setup .NET
+        id: dotnet
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.dotnet.outputs.dotnet-version }}-${{ hashFiles('src/**/*.csproj', '**/*.props', '**/*.targets', '**/packages.lock.json', '**/nuget.config', '**/NuGet.Config', 'global.json') }}
       - name: Run tests
         run: dotnet test src/ASPAssistant.Tests/ASPAssistant.Tests.csproj -c Release --filter "Category!=LocalScreenshot"
       - name: Record successful test evidence
@@ -64,3 +87,32 @@ jobs:
           path: ${{ runner.temp }}/verified-tests/result.json
           retention-days: 30
           if-no-files-found: error
+
+  warm-cache:
+    name: Warm default-branch NuGet cache
+    if: github.event_name == 'push'
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup .NET
+        id: dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Cache NuGet packages
+        id: nuget
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.dotnet.outputs.dotnet-version }}-${{ hashFiles('src/**/*.csproj', '**/*.props', '**/*.targets', '**/packages.lock.json', '**/nuget.config', '**/NuGet.Config', 'global.json') }}
+      - name: Restore test and release dependencies
+        if: steps.nuget.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          dotnet restore src/ASPAssistant.Tests/ASPAssistant.Tests.csproj
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet restore src/ASPAssistant.App/ASPAssistant.App.csproj -r win-x64 -p:SelfContained=true
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

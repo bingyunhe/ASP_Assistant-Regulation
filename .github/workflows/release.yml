@@ -10,15 +10,24 @@ permissions:
   contents: write
   actions: read
 
+env:
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
 jobs:
   build:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - name: Setup .NET
+        id: dotnet
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.dotnet.outputs.dotnet-version }}-${{ hashFiles('src/**/*.csproj', '**/*.props', '**/*.targets', '**/packages.lock.json', '**/nuget.config', '**/NuGet.Config', 'global.json') }}
       - name: Look up verified tests
         id: reuse
         continue-on-error: true
