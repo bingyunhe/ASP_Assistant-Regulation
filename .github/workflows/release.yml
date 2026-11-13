@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   build:
@@ -18,7 +19,18 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
+      - name: Look up verified tests
+        id: reuse
+        continue-on-error: true
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $env:GITHUB_SHA = git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve release commit' }
+          ./.github/scripts/Resolve-ReleaseTestReuse.ps1
       - name: Run tests
+        if: steps.reuse.outcome != 'success' || steps.reuse.outputs.reuse != 'true'
         run: dotnet test src/ASPAssistant.Tests/ASPAssistant.Tests.csproj -c Release --filter "Category!=LocalScreenshot"
       - name: Extract version
         shell: pwsh
