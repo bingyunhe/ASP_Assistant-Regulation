@@ -13,6 +13,8 @@ public partial class OperatorPickerWindow : Window
 {
     private readonly OperatorBrowseViewModel _filters = new();
     private readonly IReadOnlySet<string> _strategies;
+    private Operator? _pressedOperator;
+    private Point _pressPosition;
 
     public string? Result { get; private set; }
 
@@ -38,11 +40,25 @@ public partial class OperatorPickerWindow : Window
 
     private void OnResetFiltersClick(object sender, RoutedEventArgs e) => _filters.ResetFilters();
 
+    private void OnOperatorMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        _pressedOperator = null;
+        if (ItemsControl.ContainerFromElement(OperatorsList, e.OriginalSource as DependencyObject) is not ListBoxItem { IsEnabled: true } item)
+            return;
+        _pressedOperator = (Operator)item.Content;
+        _pressPosition = e.GetPosition(OperatorsList);
+    }
+
     private void OnOperatorClick(object sender, MouseButtonEventArgs e)
     {
-        if (ItemsControl.ContainerFromElement(OperatorsList, e.OriginalSource as DependencyObject) is not ListBoxItem item)
+        var op = _pressedOperator;
+        _pressedOperator = null;
+        if (op is null || ItemsControl.ContainerFromElement(OperatorsList, e.OriginalSource as DependencyObject) is not ListBoxItem)
             return;
-        var op = (Operator)item.Content;
+        var movement = e.GetPosition(OperatorsList) - _pressPosition;
+        if (Math.Abs(movement.X) > SystemParameters.MinimumHorizontalDragDistance
+            || Math.Abs(movement.Y) > SystemParameters.MinimumVerticalDragDistance)
+            return;
         if (op.RequiredStrategyId.Length > 0 && !_strategies.Contains(op.RequiredStrategyId)) return;
         Result = op.Name;
         Close();

@@ -12,21 +12,67 @@ namespace ASPAssistant.Core.ViewModels;
 public partial class LineupViewModel : ObservableObject
 {
     private readonly LineupStore _store;
+    private Func<string, bool> _isBanned = _ => false;
     public CovenantCalculator Calculator { get; }
 
+    public ObservableCollection<Lineup> Lineups { get; } = [];
+
     [ObservableProperty]
-    private ObservableCollection<Lineup> _lineups = [];
+    private AvailabilityFilter _selectedAvailabilityFilter;
+
+    public IReadOnlyList<Lineup> VisibleLineups => [.. Lineups.Where(lineup => SelectedAvailabilityFilter == AvailabilityFilter.All
+        || lineup.Slots.All(slot => !_isBanned(slot.OperatorName)) == (SelectedAvailabilityFilter == AvailabilityFilter.Available))];
 
     public LineupViewModel(LineupStore store, CovenantCalculator calculator)
     {
         _store = store;
         Calculator = calculator;
+        Lineups.CollectionChanged += (_, _) => RefreshAvailability();
     }
 
     public void LoadLineups(IEnumerable<Lineup> lineups)
     {
-        Lineups = new ObservableCollection<Lineup>(
-            lineups.OrderByDescending(l => l.UpdatedAt));
+        Lineups.Clear();
+        foreach (var lineup in lineups) Lineups.Add(lineup);
+    }
+
+    public void SetBanChecker(Func<string, bool> checker)
+    {
+        _isBanned = checker;
+        RefreshAvailability();
+    }
+
+    public void RefreshAvailability() => OnPropertyChanged(nameof(VisibleLineups));
+
+    partial void OnSelectedAvailabilityFilterChanged(AvailabilityFilter value) => RefreshAvailability();
+
+    public bool CanMove(Lineup lineup, int direction)
+    {
+        var index = VisibleLineups.ToList().IndexOf(lineup);
+        return index >= 0 && (direction == 0 ? Lineups.IndexOf(lineup) > 0
+            : direction < 0 ? index > 0 : index < VisibleLineups.Count - 1);
+    }
+
+    public async Task MoveAsync(Lineup lineup, int direction)
+    {
+        if (!CanMove(lineup, direction)) return;
+        var original = Lineups.ToList();
+        var index = Lineups.IndexOf(lineup);
+        if (direction == 0) Lineups.Move(index, 0);
+        else
+        {
+            var visible = VisibleLineups.ToList();
+            var other = visible[visible.IndexOf(lineup) + direction];
+            var otherIndex = Lineups.IndexOf(other);
+            Lineups[index] = other;
+            Lineups[otherIndex] = lineup;
+        }
+        try { await _store.SaveOrderAsync(Lineups.Select(l => l.Id)); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            LoadLineups(original);
+            throw;
+        }
     }
 
     /// <summary>新增或更新阵容，并落盘。</summary>
@@ -47,6 +93,7 @@ public partial class LineupViewModel : ObservableObject
         else
         {
             Lineups.Insert(0, lineup);
+            await _store.SaveOrderAsync(Lineups.Select(l => l.Id));
         }
     }
 
@@ -54,6 +101,7 @@ public partial class LineupViewModel : ObservableObject
     {
         await _store.DeleteAsync(lineup.Id);
         Lineups.Remove(lineup);
+        await _store.SaveOrderAsync(Lineups.Select(l => l.Id));
     }
 
     public int CountActivated(Lineup lineup) => Calculator.CountActivated(lineup);

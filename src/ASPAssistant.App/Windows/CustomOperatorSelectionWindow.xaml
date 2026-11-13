@@ -1,0 +1,42 @@
+<Window x:Class="ASPAssistant.App.Windows.CustomOperatorSelectionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:ASPAssistant.App.Controls"
+        Title="选择自选干员" Width="620" Height="660" MinWidth="590" MinHeight="440"
+        WindowStartupLocation="CenterOwner" WindowStyle="None" ResizeMode="CanResizeWithGrip"
+        Background="{DynamicResource PanelBackgroundBrush}" Foreground="{DynamicResource TextPrimaryBrush}"
+        Icon="{StaticResource AspaLogo}">
+    <WindowChrome.WindowChrome><WindowChrome CaptionHeight="0" ResizeBorderThickness="5" GlassFrameThickness="0" /></WindowChrome.WindowChrome>
+    <Border Background="{DynamicResource PanelBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+        <DockPanel>
+            <Border DockPanel.Dock="Top" Style="{StaticResource DialogTitleBar}" MouseLeftButtonDown="OnTitleBarDrag">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Tag="{StaticResource IconClose}" Style="{StaticResource DialogCloseButton}" ToolTip="关闭" Click="OnCancel" />
+                    <Button DockPanel.Dock="Right" Content="─" Style="{StaticResource TitleBarButton}" ToolTip="最小化" Click="OnMinimize" />
+                    <TextBlock Text="选择自选干员" Style="{StaticResource DialogTitleText}" />
+                </DockPanel>
+            </Border>
+            <Border DockPanel.Dock="Bottom" Style="{StaticResource DialogFooter}">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="保存" Style="{StaticResource DialogPrimaryButton}" Click="OnSave" />
+                    <Button DockPanel.Dock="Right" Content="取消" Style="{StaticResource DialogSecondaryButton}" Margin="0,0,8,0" Click="OnCancel" />
+                    <TextBlock x:Name="SelectionCount" VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" />
+                </DockPanel>
+            </Border>
+            <StackPanel DockPanel.Dock="Top" Margin="12,10,12,8">
+                <TextBlock Text="最多选择 12 名干员，暂不区分五本、六本。" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,0,8" />
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="清空选择" Style="{StaticResource DialogSecondaryButton}" Margin="8,0,0,0" Click="OnClear" />
+                    <TextBox x:Name="SearchBox" Style="{StaticResource DialogTextBox}" ToolTip="搜索候选干员名称" TextChanged="OnSearchChanged" />
+                </DockPanel>
+            </StackPanel>
+            <Grid Margin="12,0,4,8">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <WrapPanel x:Name="ChoicesPanel" />
+                </ScrollViewer>
+                <controls:EmptyState x:Name="EmptyHint" Visibility="Collapsed" Icon="{StaticResource IconOperators}"
+                                     Title="没有符合关键词的干员" Hint="换个关键词试试。" />
+            </Grid>
+        </DockPanel>
+    </Border>
+</Window>

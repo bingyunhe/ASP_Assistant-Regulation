@@ -178,6 +178,7 @@ public sealed record PlannerGoalPill(string Text, bool IsManual, bool IsGoal = f
 
 public sealed partial class PlannerLineupItem : ObservableObject
 {
+    private readonly string _lineupId = Guid.NewGuid().ToString("N");
     public required PlannedLineup Source { get; init; }
     /// <summary>1-based position in the sorted list (shown as the rank tile).</summary>
     public int Rank { get; init; }
@@ -197,6 +198,7 @@ public sealed partial class PlannerLineupItem : ObservableObject
 
     public Lineup ToLineup(LineupEquipmentService equipmentRules) => new()
     {
+        Id = _lineupId,
         Name = LineupName,
         Slots = PlannerLineupItem.Slots(Source.Operators, equipmentRules).Concat(MechSlots(Source, equipmentRules)).ToList(),
         Strategies = StrategySlots(Source.Strategy)
@@ -545,7 +547,7 @@ public partial class LineupPlannerViewModel : ObservableObject
         var text = value.Trim();
         if (text.Length == 0) return;
         foreach (var op in _operators
-                     .Where(o => o.Name.Contains(text, StringComparison.OrdinalIgnoreCase) && LockedOperators.All(l => l.Name != o.Name))
+                     .Where(o => o.IsAvailableForSelection && o.Name.Contains(text, StringComparison.OrdinalIgnoreCase) && LockedOperators.All(l => l.Name != o.Name))
                      .OrderBy(o => o.Name.StartsWith(text, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
                      .ThenBy(o => o.Name.Length)
                      .Take(8))
@@ -666,6 +668,14 @@ public partial class LineupPlannerViewModel : ObservableObject
         RequestRecompute();
     }
 
+    public void NotifyOperatorSelectionChanged()
+    {
+        foreach (var item in LockedOperators.Where(item => !_operatorByName[item.Name].IsAvailableForSelection).ToList())
+            RemoveLocked(item);
+        OnLockSearchTextChanged(LockSearchText);
+        OnBansChanged();
+    }
+
     private void ApplyBans()
     {
         var goalDropped = false;
@@ -688,7 +698,7 @@ public partial class LineupPlannerViewModel : ObservableObject
         foreach (var c in AllCovenants)
         {
             c.Members = _operators
-                .Where(o => o.CoreCovenants.Contains(c.Name) || o.AdditionalCovenants.Contains(c.Name))
+                .Where(o => o.IsAvailableForSelection && (o.CoreCovenants.Contains(c.Name) || o.AdditionalCovenants.Contains(c.Name)))
                 .OrderBy(o => o.Tier).ThenBy(o => o.Name, StringComparer.Ordinal)
                 .Select(o => new PlannerCovenantMember(o.Name, o.IconPath, o.Tier,
                     _banVm.IsBanned(o.Name) || _planner.IsExcludedByBans(o, bannedCovenants), o))

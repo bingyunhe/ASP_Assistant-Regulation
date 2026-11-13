@@ -160,6 +160,20 @@ public class LineupPlannerViewModelTests
         saved.Should().NotBeNull();
         saved!.Slots.Select(s => s.OperatorName).Should().Contain("维3");
         vm.VisibleLineups[0].Operators[0].IsLocked.Should().BeTrue();
+        Lineup? tracked = null;
+        vm.TrackRequested += l => tracked = l;
+        vm.TrackLineupCommand.Execute(vm.VisibleLineups[0]);
+        tracked!.Id.Should().Be(saved.Id);
+        tracked.Slots.Should().NotBeSameAs(saved.Slots);
+        tracked.Slots[0].Equipments.Add("独立修改");
+        saved.Slots[0].Equipments.Should().NotContain("独立修改");
+        var tracking = new TrackingViewModel();
+        tracking.TrackLineup(tracked);
+        vm.SaveLineupCommand.Execute(vm.VisibleLineups[0]);
+        tracking.TrackedLineupIds.Should().Contain(saved.Id);
+        saved.Slots = [new() { OperatorName = "修改后" }];
+        tracking.ApplyTrackedLineup(saved);
+        tracking.TrackedOperators.Should().ContainSingle().Which.Name.Should().Be("修改后");
     }
 
     [Fact]

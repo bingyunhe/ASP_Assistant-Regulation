@@ -26,6 +26,15 @@ public class OperatorVariant
 
 public class Operator
 {
+    [JsonPropertyName("isCustom")]
+    public bool IsCustom { get; set; }
+
+    [JsonIgnore]
+    public bool IsSelectedCustom { get; set; }
+
+    [JsonIgnore]
+    public bool IsAvailableForSelection => !IsCustom || IsSelectedCustom;
+
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
 

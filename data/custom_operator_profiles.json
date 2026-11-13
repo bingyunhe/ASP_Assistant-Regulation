@@ -1,0 +1,2284 @@
+{
+  "source": "https://torappu.prts.wiki/gamedata/latest/excel/",
+  "season": "act3autochess/V3_1",
+  "notice": "PRTS 原始游戏数据；自选干员无特质，技能和模组由游戏内配置决定；Ⅴ/Ⅵ阶合并为一个候选。",
+  "operators": {
+    "能天使": {
+      "profession": "狙击",
+      "subProfession": "速射手",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "灰烬": {
+      "profession": "狙击",
+      "subProfession": "速射手",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "Stormeye(卫戍协议)": {
+      "profession": "狙击",
+      "subProfession": "速射手",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "黑": {
+      "profession": "狙击",
+      "subProfession": "重射手",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-6",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-6",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "焰狐龙梓兰": {
+      "profession": "狙击",
+      "subProfession": "重射手",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-6",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-6",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "菲亚梅塔": {
+      "profession": "狙击",
+      "subProfession": "炮手",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-10",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-10",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "早露": {
+      "profession": "狙击",
+      "subProfession": "攻城手",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "4-3",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "4-3",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "提丰": {
+      "profession": "狙击",
+      "subProfession": "攻城手",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "4-3",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "4-3",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "维什戴尔": {
+      "profession": "狙击",
+      "subProfession": "投掷手",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-9",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-9",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "假日威龙陈": {
+      "profession": "狙击",
+      "subProfession": "散射手",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "2-5",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "2-5",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "莱伊": {
+      "profession": "狙击",
+      "subProfession": "猎手",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "4-9",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "4-9",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "娜仁图亚": {
+      "profession": "狙击",
+      "subProfession": "回环射手",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "y-7",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "y-7",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "推进之王": {
+      "profession": "先锋",
+      "subProfession": "尖兵",
+      "position": "近战",
+      "blockCount": 2,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "风笛": {
+      "profession": "先锋",
+      "subProfession": "冲锋手",
+      "position": "近战",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "嵯峨": {
+      "profession": "先锋",
+      "subProfession": "尖兵",
+      "position": "近战",
+      "blockCount": 2,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "琴柳": {
+      "profession": "先锋",
+      "subProfession": "执旗手",
+      "position": "近战",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "郁金香(卫戍协议)": {
+      "profession": "先锋",
+      "subProfession": "尖兵",
+      "position": "近战",
+      "blockCount": 2,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "伊内丝": {
+      "profession": "先锋",
+      "subProfession": "情报官",
+      "position": "近战",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "2-2",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "2-2",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "伊芙利特": {
+      "profession": "术师",
+      "subProfession": "轰击术师",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "5-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "5-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "谬因": {
+      "profession": "术师",
+      "subProfession": "轰击术师",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "5-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "5-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "莫斯提马": {
+      "profession": "术师",
+      "subProfession": "扩散术师",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-6",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-6",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "刻俄柏": {
+      "profession": "术师",
+      "subProfession": "中坚术师",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "玛露西尔": {
+      "profession": "术师",
+      "subProfession": "扩散术师",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-6",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-6",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "Pith(卫戍协议)": {
+      "profession": "术师",
+      "subProfession": "扩散术师",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-6",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-6",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "林": {
+      "profession": "术师",
+      "subProfession": "阵法术师",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "x-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "x-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "澄闪": {
+      "profession": "术师",
+      "subProfession": "驭械术师",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "死芒": {
+      "profession": "术师",
+      "subProfession": "塑灵术师",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "Raidian(卫戍协议)": {
+      "profession": "辅助",
+      "subProfession": "凝滞师",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "y-2",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "y-2",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "麦哲伦": {
+      "profession": "辅助",
+      "subProfession": "召唤师",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "电弧": {
+      "profession": "辅助",
+      "subProfession": "召唤师",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "令": {
+      "profession": "辅助",
+      "subProfession": "召唤师",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "娜斯提": {
+      "profession": "辅助",
+      "subProfession": "工匠",
+      "position": "近战",
+      "blockCount": 2,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "塑心": {
+      "profession": "辅助",
+      "subProfession": "巫役",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "y-2",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "y-2",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "傀影": {
+      "profession": "特种",
+      "subProfession": "处决者",
+      "position": "近战",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "缄默德克萨斯": {
+      "profession": "特种",
+      "subProfession": "处决者",
+      "position": "近战",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "麒麟R夜刀": {
+      "profession": "特种",
+      "subProfession": "处决者",
+      "position": "近战",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "弑君者": {
+      "profession": "特种",
+      "subProfession": "处决者",
+      "position": "近战",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "Misery(卫戍协议)": {
+      "profession": "特种",
+      "subProfession": "处决者",
+      "position": "近战",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "琳琅诗怀雅": {
+      "profession": "特种",
+      "subProfession": "行商",
+      "position": "近战",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "阿": {
+      "profession": "特种",
+      "subProfession": "怪杰",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "新约能天使": {
+      "profession": "特种",
+      "subProfession": "怪杰",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "阿斯卡纶": {
+      "profession": "特种",
+      "subProfession": "伏击客",
+      "position": "近战",
+      "blockCount": 0,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "y-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "y-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "国度": {
+      "profession": "特种",
+      "subProfession": "伏击客",
+      "position": "近战",
+      "blockCount": 0,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "y-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "y-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "结城理": {
+      "profession": "特种",
+      "subProfession": "傀儡师",
+      "position": "近战",
+      "blockCount": 2,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "多萝西": {
+      "profession": "特种",
+      "subProfession": "陷阱师",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "艾拉": {
+      "profession": "特种",
+      "subProfession": "陷阱师",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "望": {
+      "profession": "特种",
+      "subProfession": "陷阱师",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "予愿安洁莉娜": {
+      "profession": "特种",
+      "subProfession": "巡空者",
+      "position": "近战",
+      "blockCount": 2,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "2-2",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "2-2",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "闪灵": {
+      "profession": "医疗",
+      "subProfession": "医师",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "roles": [
+        "奶位"
+      ],
+      "stack": null,
+      "consumes": []
+    },
+    "Touch(卫戍协议)": {
+      "profession": "医疗",
+      "subProfession": "医师",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "roles": [
+        "奶位"
+      ],
+      "stack": null,
+      "consumes": []
+    },
+    "凯尔希": {
+      "profession": "医疗",
+      "subProfession": "医师",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-10",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-10",
+        "skill": null
+      },
+      "roles": [
+        "奶位"
+      ],
+      "stack": null,
+      "consumes": []
+    },
+    "焰影苇草": {
+      "profession": "医疗",
+      "subProfession": "咒愈师",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "roles": [
+        "奶位"
+      ],
+      "stack": null,
+      "consumes": []
+    },
+    "缇缇": {
+      "profession": "医疗",
+      "subProfession": "咒愈师",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-3",
+        "skill": null
+      },
+      "roles": [
+        "奶位"
+      ],
+      "stack": null,
+      "consumes": []
+    },
+    "凯尔希·思衡托": {
+      "profession": "医疗",
+      "subProfession": "守望者",
+      "position": "远程",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "y-6",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "y-6",
+        "skill": null
+      },
+      "roles": [
+        "奶位"
+      ],
+      "stack": null,
+      "consumes": []
+    },
+    "星熊": {
+      "profession": "重装",
+      "subProfession": "铁卫",
+      "position": "近战",
+      "blockCount": 3,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [
+        "盾位"
+      ],
+      "stack": null,
+      "consumes": []
+    },
+    "Mechanist(卫戍协议)": {
+      "profession": "重装",
+      "subProfession": "铁卫",
+      "position": "近战",
+      "blockCount": 3,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "0-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "0-1",
+        "skill": null
+      },
+      "roles": [
+        "盾位"
+      ],
+      "stack": null,
+      "consumes": []
+    },
+    "年": {
+      "profession": "重装",
+      "subProfession": "铁卫",
+      "position": "近战",
+      "blockCount": 3,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [
+        "盾位"
+      ],
+      "stack": null,
+      "consumes": []
+    },
+    "泥岩": {
+      "profession": "重装",
+      "subProfession": "不屈者",
+      "position": "近战",
+      "blockCount": 3,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [
+        "盾位"
+      ],
+      "stack": null,
+      "consumes": []
+    },
+    "号角": {
+      "profession": "重装",
+      "subProfession": "要塞",
+      "position": "近战",
+      "blockCount": 3,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "4-6",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "4-6",
+        "skill": null
+      },
+      "roles": [
+        "盾位"
+      ],
+      "stack": null,
+      "consumes": []
+    },
+    "信仰搅拌机": {
+      "profession": "重装",
+      "subProfession": "哨戒铁卫",
+      "position": "近战",
+      "blockCount": 3,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "2-2",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "2-2",
+        "skill": null
+      },
+      "roles": [
+        "盾位"
+      ],
+      "stack": null,
+      "consumes": []
+    },
+    "珊比": {
+      "profession": "重装",
+      "subProfession": "本源铁卫",
+      "position": "近战",
+      "blockCount": 3,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "0-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "0-1",
+        "skill": null
+      },
+      "roles": [
+        "盾位"
+      ],
+      "stack": null,
+      "consumes": []
+    },
+    "斩业星熊": {
+      "profession": "重装",
+      "subProfession": "驭法铁卫",
+      "position": "近战",
+      "blockCount": 3,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [
+        "盾位"
+      ],
+      "stack": null,
+      "consumes": []
+    },
+    "重岳": {
+      "profession": "近卫",
+      "subProfession": "斗士",
+      "position": "近战",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "银灰": {
+      "profession": "近卫",
+      "subProfession": "领主",
+      "position": "近战",
+      "blockCount": 2,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-12",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-12",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "丰川祥子": {
+      "profession": "近卫",
+      "subProfession": "领主",
+      "position": "近战",
+      "blockCount": 2,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-12",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-12",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "领主·Sharp": {
+      "profession": "近卫",
+      "subProfession": "领主",
+      "position": "近战",
+      "blockCount": 2,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "3-12",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "3-12",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "陈": {
+      "profession": "近卫",
+      "subProfession": "剑豪",
+      "position": "近战",
+      "blockCount": 2,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "煌": {
+      "profession": "近卫",
+      "subProfession": "强攻手",
+      "position": "近战",
+      "blockCount": 3,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "百炼嘉维尔": {
+      "profession": "近卫",
+      "subProfession": "强攻手",
+      "position": "近战",
+      "blockCount": 3,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "赤刃明霄陈": {
+      "profession": "近卫",
+      "subProfession": "术战者",
+      "position": "近战",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "左乐": {
+      "profession": "近卫",
+      "subProfession": "武者",
+      "position": "近战",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "止颂": {
+      "profession": "近卫",
+      "subProfession": "无畏者",
+      "position": "近战",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "Sharp(卫戍协议)": {
+      "profession": "近卫",
+      "subProfession": "无畏者",
+      "position": "近战",
+      "blockCount": 1,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-1",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "圣约送葬人": {
+      "profession": "近卫",
+      "subProfession": "收割者",
+      "position": "近战",
+      "blockCount": 2,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-3",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-3",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    },
+    "司霆惊蛰": {
+      "profession": "近卫",
+      "subProfession": "解放者",
+      "position": "近战",
+      "blockCount": 3,
+      "normalSkill": null,
+      "eliteSkill": null,
+      "normalRange": {
+        "base": "1-2",
+        "skill": null
+      },
+      "eliteRange": {
+        "base": "1-2",
+        "skill": null
+      },
+      "roles": [],
+      "stack": null,
+      "consumes": []
+    }
+  },
+  "ranges": {
+    "0-1": [
+      [
+        0,
+        0
+      ]
+    ],
+    "1-1": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ]
+    ],
+    "1-2": [
+      [
+        0,
+        -1
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        0
+      ]
+    ],
+    "1-3": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        -1
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "2-2": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        2,
+        0
+      ]
+    ],
+    "2-5": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        -1
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        -1
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        2,
+        1
+      ]
+    ],
+    "3-1": [
+      [
+        0,
+        -1
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        -1
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        -1
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        3,
+        0
+      ]
+    ],
+    "3-10": [
+      [
+        0,
+        -1
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        -1
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        -1
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        3,
+        -1
+      ],
+      [
+        3,
+        0
+      ],
+      [
+        3,
+        1
+      ],
+      [
+        4,
+        -1
+      ],
+      [
+        4,
+        0
+      ],
+      [
+        4,
+        1
+      ]
+    ],
+    "3-12": [
+      [
+        0,
+        -1
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        -1
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        3,
+        0
+      ]
+    ],
+    "3-3": [
+      [
+        0,
+        -1
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        -1
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        -1
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        3,
+        -1
+      ],
+      [
+        3,
+        0
+      ],
+      [
+        3,
+        1
+      ]
+    ],
+    "3-6": [
+      [
+        0,
+        -1
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        -1
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        -1
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        2,
+        1
+      ]
+    ],
+    "3-9": [
+      [
+        0,
+        -2
+      ],
+      [
+        0,
+        -1
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        0,
+        2
+      ],
+      [
+        1,
+        -2
+      ],
+      [
+        1,
+        -1
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        -2
+      ],
+      [
+        2,
+        -1
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        2,
+        2
+      ],
+      [
+        3,
+        -1
+      ],
+      [
+        3,
+        0
+      ],
+      [
+        3,
+        1
+      ],
+      [
+        4,
+        0
+      ]
+    ],
+    "4-3": [
+      [
+        2,
+        -2
+      ],
+      [
+        2,
+        -1
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        2,
+        2
+      ],
+      [
+        3,
+        -2
+      ],
+      [
+        3,
+        -1
+      ],
+      [
+        3,
+        0
+      ],
+      [
+        3,
+        1
+      ],
+      [
+        3,
+        2
+      ],
+      [
+        4,
+        -1
+      ],
+      [
+        4,
+        0
+      ],
+      [
+        4,
+        1
+      ]
+    ],
+    "4-6": [
+      [
+        3,
+        -1
+      ],
+      [
+        3,
+        0
+      ],
+      [
+        3,
+        1
+      ],
+      [
+        4,
+        -1
+      ],
+      [
+        4,
+        0
+      ],
+      [
+        4,
+        1
+      ],
+      [
+        5,
+        0
+      ]
+    ],
+    "4-9": [
+      [
+        0,
+        -1
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        -1
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        3,
+        0
+      ],
+      [
+        4,
+        0
+      ]
+    ],
+    "5-1": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        3,
+        0
+      ],
+      [
+        4,
+        0
+      ],
+      [
+        5,
+        0
+      ]
+    ],
+    "x-1": [
+      [
+        -2,
+        0
+      ],
+      [
+        -1,
+        -1
+      ],
+      [
+        -1,
+        0
+      ],
+      [
+        -1,
+        1
+      ],
+      [
+        0,
+        -2
+      ],
+      [
+        0,
+        -1
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        0,
+        2
+      ],
+      [
+        1,
+        -1
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        0
+      ]
+    ],
+    "y-1": [
+      [
+        -1,
+        -1
+      ],
+      [
+        -1,
+        0
+      ],
+      [
+        -1,
+        1
+      ],
+      [
+        0,
+        -1
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        -1
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        0
+      ]
+    ],
+    "y-2": [
+      [
+        -1,
+        -1
+      ],
+      [
+        -1,
+        0
+      ],
+      [
+        -1,
+        1
+      ],
+      [
+        0,
+        -1
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        -1
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        -1
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        2,
+        1
+      ]
+    ],
+    "y-6": [
+      [
+        -1,
+        -1
+      ],
+      [
+        -1,
+        0
+      ],
+      [
+        -1,
+        1
+      ],
+      [
+        0,
+        -2
+      ],
+      [
+        0,
+        -1
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        0,
+        2
+      ],
+      [
+        1,
+        -2
+      ],
+      [
+        1,
+        -1
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        -1
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        2,
+        1
+      ]
+    ],
+    "y-7": [
+      [
+        -1,
+        -1
+      ],
+      [
+        -1,
+        0
+      ],
+      [
+        -1,
+        1
+      ],
+      [
+        0,
+        -1
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        -1
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        2,
+        -1
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        3,
+        -1
+      ],
+      [
+        3,
+        0
+      ],
+      [
+        3,
+        1
+      ]
+    ]
+  }
+}

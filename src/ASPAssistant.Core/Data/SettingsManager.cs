@@ -11,7 +11,9 @@ public class SettingsManager
     private readonly string _settingsDir;
     private readonly SemaphoreSlim _sidePanelPositionLock = new(1, 1);
     private readonly SemaphoreSlim _trackingLock = new(1, 1);
+    private readonly SemaphoreSlim _deployPoolLock = new(1, 1);
     private readonly SemaphoreSlim _gameConnectionLock = new(1, 1);
+    private readonly SemaphoreSlim _customSelectionLock = new(1, 1);
     private static readonly JsonSerializerOptions ThemeJsonOptions = new()
     {
         Converters = { new JsonStringEnumConverter<GameShopTheme>(allowIntegerValues: false) }
@@ -64,6 +66,39 @@ public class SettingsManager
         var path = Path.Combine(_settingsDir, "light-theme.json");
         if (!File.Exists(path)) return false;
         return JsonSerializer.Deserialize<bool>(await File.ReadAllTextAsync(path));
+    }
+
+    public async Task<List<string>> LoadCustomOperatorSelectionAsync()
+    {
+        string json;
+        try { json = await File.ReadAllTextAsync(Path.Combine(_settingsDir, "custom-operators.json")); }
+        catch (IOException ex) when (ex is FileNotFoundException or DirectoryNotFoundException) { return []; }
+        var names = JsonSerializer.Deserialize<List<string>>(json)
+            ?? throw new JsonException("自选干员配置不能为空");
+        if (names.Count > 12 || names.Any(string.IsNullOrWhiteSpace) || names.Distinct(StringComparer.Ordinal).Count() != names.Count)
+            throw new JsonException("自选干员配置必须为不重复的最多 12 名干员");
+        return names;
+    }
+
+    public async Task SaveCustomOperatorSelectionAsync(IReadOnlyList<string> names)
+    {
+        var json = JsonSerializer.Serialize(names, JsonOptions);
+        await _customSelectionLock.WaitAsync();
+        var path = Path.GetFullPath(Path.Combine(_settingsDir, "custom-operators.json"));
+        var temporary = path + $".{Guid.NewGuid():N}.tmp";
+        try
+        {
+            Directory.CreateDirectory(_settingsDir);
+            try
+            {
+                await File.WriteAllTextAsync(temporary, json);
+                try { File.Copy(path, path + ".bak", true); }
+                catch (FileNotFoundException) { /* No earlier selection on first save. */ }
+                File.Move(temporary, path, true);
+            }
+            finally { File.Delete(temporary); }
+        }
+        finally { _customSelectionLock.Release(); }
     }
 
     public async Task SaveLightThemeAsync(bool isLight)
@@ -167,6 +202,24 @@ public class SettingsManager
         }
     }
 
+    public async Task<bool> LoadAutomaticGameThemeAsync()
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<bool>(await File.ReadAllTextAsync(Path.Combine(_settingsDir, "game-theme-auto.json")));
+        }
+        catch (IOException ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return false;
+        }
+    }
+
+    public async Task SaveAutomaticGameThemeAsync(bool automatic)
+    {
+        Directory.CreateDirectory(_settingsDir);
+        await File.WriteAllTextAsync(Path.Combine(_settingsDir, "game-theme-auto.json"), JsonSerializer.Serialize(automatic));
+    }
+
     public async Task SaveGameShopThemeAsync(GameShopTheme theme)
     {
         Directory.CreateDirectory(_settingsDir);
@@ -213,8 +266,43 @@ public class SettingsManager
 
     public async Task SaveDeployPoolAsync(DeployPoolState state)
     {
+        var json = JsonSerializer.Serialize(state, JsonOptions);
         Directory.CreateDirectory(_settingsDir);
-        await File.WriteAllTextAsync(Path.Combine(_settingsDir, "deploy-pool.json"), JsonSerializer.Serialize(state, JsonOptions));
+        var path = Path.Combine(_settingsDir, "deploy-pool.json");
+        await _deployPoolLock.WaitAsync();
+        var temporary = path + $".{Guid.NewGuid():N}.tmp";
+        try
+        {
+            try { File.Copy(path, path + ".bak", true); }
+            catch (FileNotFoundException) { }
+            await File.WriteAllTextAsync(temporary, json);
+            File.Move(temporary, path, true);
+        }
+        finally { File.Delete(temporary); _deployPoolLock.Release(); }
+    }
+
+    public async Task<AssistantHotkey?> LoadAssistantHotkeyAsync()
+    {
+        string json;
+        try { json = await File.ReadAllTextAsync(Path.Combine(_settingsDir, "assistant-hotkey.json")); }
+        catch (IOException ex) when (ex is FileNotFoundException or DirectoryNotFoundException) { return null; }
+        var hotkey = JsonSerializer.Deserialize<AssistantHotkey?>(json, JsonOptions);
+        if (hotkey?.ConflictReason() is { } reason) throw new JsonException(reason);
+        return hotkey;
+    }
+
+    public async Task SaveAssistantHotkeyAsync(AssistantHotkey? hotkey)
+    {
+        Directory.CreateDirectory(_settingsDir);
+        var path = Path.Combine(_settingsDir, "assistant-hotkey.json");
+        try
+        {
+            await File.WriteAllTextAsync(path + ".tmp", JsonSerializer.Serialize(hotkey, JsonOptions));
+            try { File.Copy(path, path + ".bak", true); }
+            catch (FileNotFoundException) { }
+            File.Move(path + ".tmp", path, true);
+        }
+        finally { File.Delete(path + ".tmp"); }
     }
 
     public async Task<SidePanelPositionSettings> LoadSidePanelPositionAsync()
@@ -254,29 +342,51 @@ public class SettingsManager
         finally { _sidePanelPositionLock.Release(); }
     }
 
-    public async Task SaveTrackingEntriesAsync(List<TrackingEntry> entries)
+    public Task SaveTrackingEntriesAsync(List<TrackingEntry> entries)
+        => SaveTrackingStateAsync(new TrackingState { Entries = entries });
+
+    public async Task SaveTrackingStateAsync(TrackingState state)
     {
+        var json = JsonSerializer.Serialize(state, JsonOptions);
         Directory.CreateDirectory(_settingsDir);
         var path = Path.Combine(_settingsDir, "tracking.json");
-        var json = JsonSerializer.Serialize(entries, JsonOptions);
         await _trackingLock.WaitAsync();
         var temporary = path + $".{Guid.NewGuid():N}.tmp";
         try
         {
+            try
+            {
+                var previous = await File.ReadAllTextAsync(path);
+                if (previous.TrimStart().StartsWith("[", StringComparison.Ordinal))
+                    File.Copy(path, path + $".pre-sources-{Guid.NewGuid():N}.bak");
+                File.Copy(path, path + ".bak", true);
+            }
+            catch (FileNotFoundException) { }
             await File.WriteAllTextAsync(temporary, json);
             File.Move(temporary, path, true);
         }
-        finally { _trackingLock.Release(); File.Delete(temporary); }
+        finally { File.Delete(temporary); _trackingLock.Release(); }
     }
 
     public async Task<List<TrackingEntry>> LoadTrackingEntriesAsync(LineupEquipmentService equipmentRules)
+        => (await LoadTrackingStateAsync(equipmentRules)).Entries;
+
+    public async Task<TrackingState> LoadTrackingStateAsync(LineupEquipmentService equipmentRules)
     {
         var path = Path.Combine(_settingsDir, "tracking.json");
-        if (!File.Exists(path))
-            return [];
-
-        var json = await File.ReadAllTextAsync(path);
-        var entries = JsonSerializer.Deserialize<List<TrackingEntry>>(json, JsonOptions) ?? [];
+        string json;
+        try { json = await File.ReadAllTextAsync(path); }
+        catch (IOException ex) when (ex is FileNotFoundException or DirectoryNotFoundException) { return new(); }
+        using var document = JsonDocument.Parse(json);
+        var state = document.RootElement.ValueKind == JsonValueKind.Array
+            ? new TrackingState { Entries = JsonSerializer.Deserialize<List<TrackingEntry>>(json, JsonOptions)! }
+            : JsonSerializer.Deserialize<TrackingState>(json, JsonOptions) ?? throw new JsonException("追踪配置不能为空");
+        if (state.Entries is null || state.Lineups is null || state.Lineups.Any(l => l is null || string.IsNullOrEmpty(l.Id))
+            || state.Lineups.Select(l => l.Id).Distinct().Count() != state.Lineups.Count
+            || state.Entries.Any(e => e is null || e.Origins is null || e.Equipments is null
+                || e.Origins.Any(o => o is null || o.LineupId is null || o.Equipments is null)))
+            throw new JsonException("追踪来源配置无效");
+        var entries = state.Entries;
         var changed = false;
         foreach (var entry in entries.Where(e => e.Type == TrackingType.Operator))
         {
@@ -292,9 +402,9 @@ public class SettingsManager
                 if (!entries.Any(e => e.Type == TrackingType.Equipment && e.Name == name))
                     entries.Add(new TrackingEntry { Name = name, Type = TrackingType.Equipment, IsManual = false });
             File.Copy(path, path + $".pre-equipment-{Guid.NewGuid():N}.bak");
-            await SaveTrackingEntriesAsync(entries);
+            await SaveTrackingStateAsync(state);
         }
-        return entries;
+        return state;
     }
 
     public async Task<string?> LoadSkippedVersionAsync()

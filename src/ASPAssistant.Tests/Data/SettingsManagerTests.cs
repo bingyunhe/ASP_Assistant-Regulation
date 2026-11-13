@@ -8,6 +8,18 @@ namespace ASPAssistant.Tests.Data;
 public class SettingsManagerTests : IDisposable
 {
     [Fact]
+    public async Task AutomaticGameThemeDefaultsToManualAndRoundTripsIndependently()
+    {
+        await _manager.SaveGameShopThemeAsync(GameShopTheme.Ursus);
+        (await _manager.LoadAutomaticGameThemeAsync()).Should().BeFalse();
+        await _manager.SaveAutomaticGameThemeAsync(true);
+        (await _manager.LoadAutomaticGameThemeAsync()).Should().BeTrue();
+        (await _manager.LoadGameShopThemeAsync()).Should().Be(GameShopTheme.Ursus);
+        await _manager.SaveAutomaticGameThemeAsync(false);
+        (await _manager.LoadAutomaticGameThemeAsync()).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task RapidTrackingSavesAreSerializedAndLeaveCompleteLatestJson()
     {
         await Task.WhenAll(Enumerable.Range(0, 20).Select(i => _manager.SaveTrackingEntriesAsync(

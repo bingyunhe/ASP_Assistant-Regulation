@@ -56,6 +56,10 @@ public class Lineup
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
 
+    [JsonPropertyName("sourceUrl")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SourceUrl { get; set; }
+
     /// <summary>后期阵容（最多 9 个），用于列表预览；追踪包含四个阶段，同名干员优先使用后期配置。</summary>
     [JsonPropertyName("slots")]
     public List<LineupSlot> Slots { get; set; } = [];

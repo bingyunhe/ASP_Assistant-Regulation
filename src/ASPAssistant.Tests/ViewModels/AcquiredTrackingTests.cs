@@ -8,6 +8,94 @@ namespace ASPAssistant.Tests.ViewModels;
 public class AcquiredTrackingTests
 {
     [Theory]
+    [InlineData(false, false, false, false)]
+    [InlineData(false, true, false, true)]
+    [InlineData(false, true, true, true)]
+    [InlineData(true, false, false, false)]
+    [InlineData(true, true, false, false)]
+    [InlineData(true, true, true, true)]
+    public void LineupTargetUsesOwnedOrEliteState(bool targetElite, bool owned, bool elite, bool acquired)
+    {
+        var state = new DeployPoolState();
+        state.SetOwned("角峰", owned);
+        state.SetElite("角峰", elite);
+        var vm = new TrackingViewModel();
+        vm.SetDeployPool(state);
+        vm.TrackLineup(new Lineup { Slots = [new() { OperatorName = "角峰", IsElite = targetElite }] });
+        vm.TrackedOperators.Should().ContainSingle().Which.IsAcquired.Should().Be(acquired);
+        vm.IsTracked("角峰").Should().Be(!acquired);
+        vm.TrackedOperators.Single().IsElite.Should().Be(targetElite);
+        var shop = new List<ShopItem> { new() { Name = "角峰" } };
+        GameStateUpdater.UpdateShopTracking(shop, vm.ActiveEntries.ToList());
+        shop.Single().IsTracked.Should().Be(!acquired);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CancellationAndRestoredPoolRespectTheTarget(bool targetElite)
+    {
+        var state = new DeployPoolState { Owned = ["角峰"], Elite = ["角峰"] };
+        var vm = new TrackingViewModel();
+        vm.TrackLineup(new Lineup { Slots = [new() { OperatorName = "角峰", IsElite = targetElite, Equipments = ["盾牌"] }] });
+        vm.SetDeployPool(state);
+        vm.IsTracked("角峰").Should().BeFalse();
+        vm.TrackedEquipment.Should().BeEmpty();
+        state.SetElite("角峰", false);
+        vm.SyncDeployPool();
+        vm.IsTracked("角峰").Should().Be(targetElite);
+        state.SetOwned("角峰", false);
+        vm.SyncDeployPool();
+        vm.IsTracked("角峰").Should().BeTrue();
+        vm.TrackedEquipment.Should().ContainSingle().Which.Name.Should().Be("盾牌");
+        state.SetOwned("角峰", true);
+        vm.LoadEntries(vm.AllEntries.ToList());
+        vm.IsTracked("角峰").Should().Be(targetElite);
+        state.SetElite("隐现", true);
+        vm.SyncDeployPool();
+        vm.TrackedOperators.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void RetargetingOwnedOperatorToEliteResumesTracking()
+    {
+        var vm = new TrackingViewModel();
+        vm.SetDeployPool(new DeployPoolState { Owned = ["角峰"] });
+        vm.TrackLineup(new Lineup { Slots = [new() { OperatorName = "角峰" }] });
+        vm.IsTracked("角峰").Should().BeFalse();
+        vm.TrackLineup(new Lineup { Slots = [new() { OperatorName = "角峰", IsElite = true }],
+            EarlySlots = [new() { OperatorName = "角峰" }] });
+        vm.IsTracked("角峰").Should().BeTrue();
+        vm.TrackedOperators.Single().IsElite.Should().BeTrue();
+    }
+
+    [Fact]
+    public void EliteCompletionAndCancellationKeepTheRowAndUpdateShopMarkers()
+    {
+        var vm = new TrackingViewModel();
+        vm.AddTracking("角峰", TrackingType.Operator);
+        var shop = new List<ShopItem> { new() { Name = "角峰" } };
+        foreach (var acquired in new[] { true, true, false, false, true, false })
+        {
+            vm.SetOperatorAcquired("角峰", acquired);
+            vm.TrackedOperators.Should().ContainSingle().Which.IsAcquired.Should().Be(acquired);
+            GameStateUpdater.UpdateShopTracking(shop, vm.ActiveEntries.ToList());
+            shop.Single().IsTracked.Should().Be(!acquired);
+        }
+    }
+
+    [Fact]
+    public void EliteChangesForUntrackedPoolOperatorsDoNotCreateTrackingEntries()
+    {
+        var vm = new TrackingViewModel();
+        vm.AddTracking("角峰", TrackingType.Operator);
+        vm.SetOperatorAcquired("隐现", true);
+        vm.SetOperatorAcquired("隐现", false);
+        vm.AllEntries.Should().ContainSingle().Which.Name.Should().Be("角峰");
+        vm.IsTracked("角峰").Should().BeTrue();
+    }
+
+    [Theory]
     [InlineData(TrackingType.Operator)]
     [InlineData(TrackingType.Equipment)]
     public void AcquiredButtonCanToggleRepeatedlyWithoutDuplicatingRows(TrackingType type)
@@ -62,7 +150,7 @@ public class AcquiredTrackingTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void AcquiringEquipmentRetainsRecordAndUsesExistingCancellationRules(bool manual)
+    public void AcquiringEquipmentPreservesDesiredRequirementsAndExplicitRemovalCancelsThem(bool manual)
     {
         var vm = new TrackingViewModel { TrackMultipleLineups = true };
         var lineup = new Lineup { Slots = [
@@ -76,7 +164,8 @@ public class AcquiredTrackingTests
 
         vm.TrackedEquipment.Should().ContainSingle().Which.IsAcquired.Should().BeTrue();
         vm.IsTracked("共享装备").Should().BeFalse();
-        vm.TrackedOperators.Should().OnlyContain(e => !e.Equipments.Contains("共享装备"));
+        vm.TrackedOperators.Should().OnlyContain(e => e.Equipments.Contains("共享装备")
+            && e.Origins.All(o => o.Equipments.Contains("共享装备")));
         lineup.Slots.Should().OnlyContain(s => s.Equipments.Contains("共享装备"));
         vm.TrackLineup(lineup);
         vm.LoadEntries(vm.AllEntries.ToList());

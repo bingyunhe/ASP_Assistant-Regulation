@@ -7,13 +7,14 @@ namespace ASPAssistant.App.Windows;
 /// <summary>Themed yes / no (or OK only) dialog in place of the system message box.</summary>
 public partial class ConfirmDialog : Window
 {
-    public ConfirmDialog(string title, string message, string okText = "确定", bool danger = false, bool okOnly = false)
+    public ConfirmDialog(string title, string message, string okText = "确定", bool danger = false, bool okOnly = false, string cancelText = "取消")
     {
         InitializeComponent();
         Title = title;
         TitleText.Text = title;
         MessageText.Text = message;
         OkButton.Content = okText;
+        CancelButton.Content = cancelText;
         if (danger) OkButton.Style = (Style)FindResource("DialogDangerButton");
         if (okOnly) CancelButton.Visibility = Visibility.Collapsed;
     }

@@ -1,7 +1,8 @@
 <!-- Modified for ASP Assistant Regulation on 2026-11-09; see NOTICE. -->
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:converters="clr-namespace:ASPAssistant.App.Converters">
+                    xmlns:converters="clr-namespace:ASPAssistant.App.Converters"
+                    xmlns:controls="clr-namespace:ASPAssistant.App.Controls">
 
     <!-- Clickable-control baseline: only interactive controls get hand cursor -->
     <!-- Line icons (24×24 stroke paths) -->
@@ -765,8 +766,16 @@
                                    Foreground="{DynamicResource TextPrimaryBrush}" FontSize="15"
                                    FontWeight="SemiBold" TextWrapping="Wrap" />
                         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                            <TextBlock Text="{Binding DataContext.Tier, RelativeSource={RelativeSource AncestorType=ToolTip}, Converter={StaticResource DetailsTierToRoman}}"
-                                       Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,0,8,0" />
+                            <TextBlock Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" Margin="0,0,8,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="{Binding DataContext.Tier, RelativeSource={RelativeSource AncestorType=ToolTip}, Converter={StaticResource DetailsTierToRoman}}" />
+                                        <Style.Triggers><DataTrigger Binding="{Binding DataContext.IsCustom, RelativeSource={RelativeSource AncestorType=ToolTip}}" Value="True">
+                                            <Setter Property="Text" Value="自选" />
+                                        </DataTrigger></Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                             <TextBlock Text="{Binding Tag, RelativeSource={RelativeSource AncestorType=ContentControl}}"
                                        Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ContentControl}}"
                                        FontSize="12" FontWeight="Bold" />
@@ -918,7 +927,32 @@
         <Setter Property="Background" Value="{DynamicResource DangerTintBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource DangerBorderBrush}" />
     </Style>
-    <Style x:Key="DialogTextBox" TargetType="TextBox">
+    <Style x:Key="ClearableTextBox" TargetType="TextBox">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="frame" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{DynamicResource RowCornerRadius}">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                            <Button x:Name="ClearTextButton" Grid.Column="1" Tag="{StaticResource IconClose}" Width="22" Height="22" Padding="0" Margin="2,0,4,0"
+                                    VerticalAlignment="Center" Focusable="False" ToolTip="清空文字" AutomationProperties.Name="清空文字"
+                                    Style="{StaticResource RowIconButton}" Command="{x:Static controls:TextBoxClear.ClearCommand}"
+                                    CommandTarget="{Binding RelativeSource={RelativeSource TemplatedParent}}" />
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Text" Value=""><Setter TargetName="ClearTextButton" Property="Visibility" Value="Collapsed" /></Trigger>
+                        <Trigger Property="IsReadOnly" Value="True"><Setter TargetName="ClearTextButton" Property="Visibility" Value="Collapsed" /></Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="frame" Property="BorderBrush" Value="{DynamicResource AccentBorderBrush}" /></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style TargetType="TextBox" BasedOn="{StaticResource ClearableTextBox}" />
+    <Style x:Key="DialogTextBox" TargetType="TextBox" BasedOn="{StaticResource ClearableTextBox}">
         <Setter Property="FontSize" Value="13" />
         <Setter Property="MinHeight" Value="32" />
         <Setter Property="Padding" Value="9,6" />
@@ -927,22 +961,8 @@
         <Setter Property="SelectionBrush" Value="{DynamicResource AccentBrush}" />
         <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
-        <Setter Property="Template">
-            <Setter.Value>
-                <ControlTemplate TargetType="TextBox">
-                    <Border x:Name="frame" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
-                            CornerRadius="{DynamicResource RowCornerRadius}">
-                        <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="frame" Property="BorderBrush" Value="{DynamicResource AccentBorderBrush}" />
-                        </Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Setter.Value>
-        </Setter>
     </Style>
 
     <!-- ── Filter card (operators / equipment) ───────────────────────────── -->

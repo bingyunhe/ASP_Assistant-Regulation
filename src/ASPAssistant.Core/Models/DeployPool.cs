@@ -86,7 +86,7 @@ public static class DeployPoolBuilder
             .SelectMany(o => o!.CoreCovenants.Concat(o.AdditionalCovenants)).ToHashSet();
         var extra = state.Extra.Where(n => !trackedNames.Contains(n)).ToHashSet();
         var extension = operators.Values
-            .Where(o => !trackedNames.Contains(o.Name) && !extra.Contains(o.Name)
+            .Where(o => o.IsAvailableForSelection && !trackedNames.Contains(o.Name) && !extra.Contains(o.Name)
                         && o.CoreCovenants.Concat(o.AdditionalCovenants).Any(finalCovenants.Contains))
             // By tier (the UI splits them into one band per tier), then the ones sharing more covenants first.
             .OrderBy(o => o.Tier)
@@ -100,8 +100,8 @@ public static class DeployPoolBuilder
             .Distinct().Select(n => Item(n, Covs(Op(n)), true)).ToList();
 
         var groups = new List<DeployPoolGroup>();
-        if (finals.Count > 0) groups.Add(new(DeployPoolGroupKind.Final, "最终阵容", "追踪中的大成干员", finals));
-        if (transitions.Count > 0) groups.Add(new(DeployPoolGroupKind.Transition, "过渡", "按阶段 · 不会被移除", transitions));
+        if (finals.Count > 0) groups.Add(new(DeployPoolGroupKind.Final, "大成干员", "获取与精锐状态", finals));
+        if (transitions.Count > 0) groups.Add(new(DeployPoolGroupKind.Transition, "过渡干员", "按阶段保留", transitions));
         if (extension.Count > 0)
             groups.Add(new(DeployPoolGroupKind.Extension, "扩展池",
                 "没追踪，但有" + string.Join("、", finalCovenants.Take(3)) + (finalCovenants.Count > 3 ? " 等" : "") + "盟约", extension));

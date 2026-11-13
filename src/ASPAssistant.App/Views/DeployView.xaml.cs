@@ -51,7 +51,9 @@ public partial class DeployView : UserControl
     private readonly DispatcherTimer _replanTimer = new() { Interval = TimeSpan.FromMilliseconds(350) };
     private int? _activeTier;   // 扩展池: the tier shown (tiles switch between tiers)
     private string _poolQuery = "";
+    private string? _locatedSearch;
     private bool _ownedOnly;
+    private bool _extensionExpanded;
     private bool _ready;
 
     // drag state
@@ -76,6 +78,24 @@ public partial class DeployView : UserControl
     public bool ShowInGame => InGameToggle.IsChecked == true;
     public PlacementPlan? CurrentPlan => _plan;
 
+    public async Task StartNewRunAsync()
+    {
+        _replanTimer.Stop();
+        _planCts?.Cancel();
+        _pins.Clear();
+        _working.Clear();
+        _selected = null;
+        _dirty = false;
+        _plan = _recommended = null;
+        _recognized = null;
+        _lastSeen = null;
+        _tracking!.StartNewRun();
+        SetStatus(null);
+        RefreshAll();
+        PublishPlan();
+        await _settings!.SaveDeployPoolAsync(_state);
+    }
+
     public void Initialize(IReadOnlyDictionary<string, Operator> operators, IEnumerable<CovenantInfo> covenants,
         GarrisonBoardData? board, TrackingViewModel tracking, SettingsManager settings, DeployPoolState state, bool showInGame)
     {
@@ -85,6 +105,7 @@ public partial class DeployView : UserControl
         _tracking = tracking;
         _settings = settings;
         _state = state;
+        tracking.SetDeployPool(state);
         InGameToggle.IsChecked = showInGame;
         _suppressSelection = true;
         ModeList.SelectedIndex = (int)state.Mode;
@@ -269,6 +290,7 @@ public partial class DeployView : UserControl
             if (_shownPage is not null) PageTransition.SlideIn(panel, fromX: page == Page.Main ? -14 : 14);
             _shownPage = page;
         }
+        MapFooter.Visibility = _page == Page.Pool ? Visibility.Collapsed : Visibility.Visible;
         MainPanel.Visibility = page == Page.Main ? Visibility.Visible : Visibility.Collapsed;
         PoolPanel.Visibility = page == Page.Pool ? Visibility.Visible : Visibility.Collapsed;
         NoMapPanel.Visibility = page == Page.NoMap ? Visibility.Visible : Visibility.Collapsed;
@@ -300,9 +322,8 @@ public partial class DeployView : UserControl
             : stale ? " · 暂时没看到棋盘" : "";
         MapSubline.Text = $"{level}{camera}" + (finals.Count > 0 ? " · " + string.Join(" + ", covs) : " · 还没有追踪阵容");
         int owned = Candidates().Count;
-        PoolCountText.Text = owned.ToString();
         PoolSummary.Text = _plan is null ? "整备区" : $"整备区 · {_plan.Bench.Count} 人";
-        PoolMeta.Text = _plan is null ? (owned == 0 ? "先在干员池里点亮手上的干员" : "") : $"上场 {_plan.Placed.Count}";
+        PoolMeta.Text = _plan is null ? (owned == 0 ? "先在干员状态标记已获取" : $"已获取 {owned} 名") : $"上场 {_plan.Placed.Count} · 已获取 {owned} 名";
     }
 
     private static readonly Dictionary<string, BitmapImage?> Thumbs = [];
@@ -671,7 +692,7 @@ public partial class DeployView : UserControl
                 DockPanel.SetDock(pin, Dock.Right);
                 dock.Children.Add(pin);
             }
-            var body = new StackPanel { Margin = new Thickness(6, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center };
+            var body = new StackPanel { ClipToBounds = true, Margin = new Thickness(6, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center };
             body.Children.Add(Text(Display(p.Key) + (_state.IsElite(p.Name) ? " · 精" : ""), 11, "TextPrimaryBrush", bold: true));
             if (opData is not null)
                 body.Children.Add(Text(string.Join(" · ", opData.CoreCovenants.Concat(opData.AdditionalCovenants)), 9.5, "TextSecondaryBrush"));
@@ -957,19 +978,23 @@ public partial class DeployView : UserControl
         PublishPlan();
     }
 
-    private void OnOpenPool(object sender, RoutedEventArgs e)
+    private void OnBackToMain(object sender, RoutedEventArgs e)
+        => ShowPage(showPool: false);
+
+    public void ShowPage(bool showPool)
     {
-        _page = Page.Pool;
+        _page = showPool ? Page.Pool : Page.Main;
+        _pickingMap = false;
         RefreshAll();
         Scroller.ScrollToTop();
     }
 
-    private void OnBackToMain(object sender, RoutedEventArgs e)
+    public void FocusOperator(string name)
     {
-        _page = Page.Main;
-        _pickingMap = false;
-        RefreshAll();
-        Scroller.ScrollToTop();
+        _locatedSearch = name;
+        PoolSearch.Text = name;
+        PoolFilterList.SelectedIndex = 0;
+        ShowPage(showPool: true);
     }
 
     private void OnPickMap(object sender, RoutedEventArgs e)
@@ -1043,7 +1068,7 @@ public partial class DeployView : UserControl
         PoolGroups.Children.Clear();
         var groups = Groups();
         int owned = Candidates().Count;
-        PoolHeaderMeta.Text = "";
+        PoolHeaderMeta.Text = $"已获取 { _state.Owned.Distinct().Count()} 名 · 点击卡片切换获取，精锐按钮单独切换；右键调整数量";
         PoolSearchHint.Visibility = _poolQuery.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         var extItems = groups.Where(g => g.Kind == DeployPoolGroupKind.Extension).SelectMany(g => g.Items).ToList();
         if (_activeTier is null || !extItems.Any(i => i.Tier == _activeTier))
@@ -1075,8 +1100,18 @@ public partial class DeployView : UserControl
             DockPanel.SetDock(count, Dock.Right);
             header.Children.Add(count);
             header.Children.Add(Text(g.Title, 11.5, "TextPrimaryBrush", bold: true));
-            header.Children.Add(Text(g.Sub, 10, "TextSecondaryBrush", margin: new Thickness(6, 0, 4, 0)));
+            var description = Text(g.Sub, 10, "TextSecondaryBrush", margin: new Thickness(6, 0, 4, 0));
+            description.TextTrimming = TextTrimming.CharacterEllipsis;
+            header.Children.Add(description);
+            if (g.Kind == DeployPoolGroupKind.Extension)
+            {
+                var toggle = new Button { Content = (_extensionExpanded || searching ? "▾ " : "▸ ") + "扩展池", Style = (Style)FindResource("SmallActionButton"), Margin = new Thickness(0, 0, 6, 0) };
+                toggle.Click += (_, _) => { _extensionExpanded = !_extensionExpanded; RefreshPool(); };
+                header.Children.RemoveAt(1);
+                header.Children.Insert(1, toggle);
+            }
             PoolGroups.Children.Add(header);
+            if (g.Kind == DeployPoolGroupKind.Extension && !_extensionExpanded && !searching && !_ownedOnly) continue;
             if (g.Kind != DeployPoolGroupKind.Extension)
             {
                 AddCards(items);
@@ -1210,6 +1245,7 @@ public partial class DeployView : UserControl
                 e.Handled = true;
                 _state.Extra.Remove(item.Name);
                 _state.SetOwned(item.Name, false);
+                _tracking?.SyncDeployPool();
                 SaveState();
                 RefreshPool();
                 ScheduleReplan();
@@ -1217,9 +1253,8 @@ public partial class DeployView : UserControl
             DockPanel.SetDock(remove, Dock.Right);
             dock.Children.Add(remove);
         }
-        var body = new StackPanel { Margin = new Thickness(6, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center, Opacity = item.Owned ? 1 : 0.5 };
-        var line = new StackPanel { Orientation = Orientation.Horizontal };
-        line.Children.Add(Text(item.Name, 11, "TextPrimaryBrush", bold: true));
+        var body = new StackPanel { ClipToBounds = true, Margin = new Thickness(6, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center, Opacity = item.Owned ? 1 : 0.5 };
+        var line = new DockPanel();
         if (item.Owned)
         {
             var elite = new Border
@@ -1236,17 +1271,27 @@ public partial class DeployView : UserControl
             {
                 e.Handled = true;
                 _state.SetElite(item.Name, !item.Elite);
+                _tracking?.SyncDeployPool();
                 SaveState();
                 RefreshPool();
                 ScheduleReplan();
             };
+            DockPanel.SetDock(elite, Dock.Right);
             line.Children.Add(elite);
         }
+        var name = Text(item.Name, 11, "TextPrimaryBrush", bold: true);
+        name.TextTrimming = TextTrimming.CharacterEllipsis;
+        line.Children.Add(name);
         body.Children.Add(line);
-        if (item.Sub.Length > 0) body.Children.Add(Text(item.Sub, 9.5, "TextSecondaryBrush"));
+        if (item.Sub.Length > 0)
+        {
+            var subtitle = Text(item.Sub, 9.5, "TextSecondaryBrush");
+            subtitle.TextTrimming = TextTrimming.CharacterEllipsis;
+            body.Children.Add(subtitle);
+        }
         dock.Children.Add(body);
         root.Children.Add(dock);
-        root.ToolTip = item.Owned ? "已拥有 · 点一下变灰（卖掉了）；右键可以加减数量" : "点一下点亮（买到了）";
+        root.ToolTip = item.Name + " · " + (item.Owned ? "已获取 · 点击取消获取；右键调整数量" : "点击标记已获取");
         var menu = new ContextMenu();
         var more = new MenuItem { Header = "再加一个（同名上场）" };
         more.Click += (_, _) => ChangeCount(item.Name, +1);
@@ -1264,6 +1309,8 @@ public partial class DeployView : UserControl
             if (e.Handled) return;
             _bouncePool = item.Name;
             _state.SetOwned(item.Name, !item.Owned);
+            ClearLocatedSearchAfterAcquisition(item.Name);
+            _tracking?.SyncDeployPool();
             SaveState();
             RefreshPool();
             ScheduleReplan();
@@ -1287,14 +1334,24 @@ public partial class DeployView : UserControl
     {
         _bouncePool = name;
         _state.SetCount(name, _state.CountOf(name) + delta);
+        ClearLocatedSearchAfterAcquisition(name);
+        _tracking?.SyncDeployPool();
         SaveState();
         RefreshPool();
         ScheduleReplan();
     }
 
+    private void ClearLocatedSearchAfterAcquisition(string name)
+    {
+        if (_locatedSearch != name || !_state.IsOwned(name)) return;
+        _locatedSearch = null;
+        PoolSearch.Clear();
+    }
+
     private void OnPoolSearchChanged(object sender, TextChangedEventArgs e)
     {
         _poolQuery = PoolSearch.Text.Trim();
+        if (_poolQuery != _locatedSearch) _locatedSearch = null;
         if (_ready) RefreshPool();
     }
 
@@ -1309,6 +1366,8 @@ public partial class DeployView : UserControl
         int level = _tracking?.TerminalLevel ?? 0;
         foreach (var entry in _tracking?.TrackedOperators.Where(t => t.Type == TrackingType.Operator) ?? [])
             if (!entry.ExpiredAt(level) && !_state.IsOwned(entry.Name)) _state.SetOwned(entry.Name, true);
+        if (_locatedSearch is { } name) ClearLocatedSearchAfterAcquisition(name);
+        _tracking?.SyncDeployPool();
         SaveState();
         RefreshPool();
         ScheduleReplan();
@@ -1318,11 +1377,17 @@ public partial class DeployView : UserControl
     {
         var strategies = _operators.Values.Select(o => o.RequiredStrategyId).Where(s => s.Length > 0).ToHashSet();
         var dlg = new OperatorPickerWindow(_operators.Values, "", strategies) { Owner = Window.GetWindow(this) };
-        if (dlg.ShowDialog() != true || dlg.Result is not { Length: > 0 } name) return;
+        dlg.ShowDialog();
+        if (dlg.Result is not { Length: > 0 } name) return;
         bool tracked = _tracking?.TrackedOperators.Any(t => t.Name == name) == true;
         bool extension = Groups().Any(g => g.Kind == DeployPoolGroupKind.Extension && g.Items.Any(i => i.Name == name));
         if (!tracked && !extension && !_state.Extra.Contains(name)) _state.Extra.Add(name);
         _state.SetOwned(name, true);
+        _locatedSearch = null;
+        PoolSearch.Clear();
+        PoolFilterList.SelectedIndex = 0;
+        if (extension) { _extensionExpanded = true; _activeTier = _operators[name].Tier; }
+        _tracking?.SyncDeployPool();
         SaveState();
         RefreshPool();
         ScheduleReplan();

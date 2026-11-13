@@ -13,9 +13,24 @@ public enum AvailabilityFilter
     Unavailable
 }
 
+public enum OperatorSourceFilter { All, Default, Custom }
+
 public partial class OperatorBrowseViewModel : ObservableObject
 {
     private List<Operator> _allOperators = [];
+    [ObservableProperty]
+    private OperatorSourceFilter _selectedOperatorSource;
+
+    public int CustomSelectionCount => _allOperators.Count(o => o.IsCustom && o.IsSelectedCustom);
+
+    private bool MatchesSource(Operator op) => op.IsAvailableForSelection
+        && (SelectedOperatorSource == OperatorSourceFilter.All || op.IsCustom == (SelectedOperatorSource == OperatorSourceFilter.Custom));
+
+    partial void OnSelectedOperatorSourceChanged(OperatorSourceFilter value)
+    {
+        ResetFilters();
+        LoadOperators(_allOperators);
+    }
     private Func<string, bool>? _isBannedCheck;
     private Func<string, bool>? _isCovenantBanned;
 
@@ -134,6 +149,8 @@ public partial class OperatorBrowseViewModel : ObservableObject
     public void LoadOperators(List<Operator> operators)
     {
         _allOperators = operators;
+        operators = operators.Where(MatchesSource).ToList();
+        OnPropertyChanged(nameof(CustomSelectionCount));
 
         AvailableTiers = [null, .. operators.Select(o => (int?)o.Tier).Distinct().OrderBy(t => t)];
 
@@ -221,7 +238,7 @@ public partial class OperatorBrowseViewModel : ObservableObject
     /// <summary>Covenant chips count the holders usable this run; trait chips count all operators having them.</summary>
     private void RefreshChipCounts()
     {
-        bool Usable(Operator o) => _isBannedCheck?.Invoke(o.Name) != true;
+        bool Usable(Operator o) => MatchesSource(o) && _isBannedCheck?.Invoke(o.Name) != true;
         foreach (var chip in CoreChips)
         {
             chip.Count = _allOperators.Count(o => o.CoreCovenants.Contains(chip.Value) && Usable(o));
@@ -233,11 +250,11 @@ public partial class OperatorBrowseViewModel : ObservableObject
             chip.Ban = _isCovenantBanned?.Invoke(chip.Value) == true ? FilterChipBan.Reduced : FilterChipBan.None;
         }
         foreach (var chip in TraitChips)
-            chip.Count = _allOperators.Count(o => o.Normal.Traits.Concat(o.Elite.Traits).Any(t => t.TraitType == chip.Value));
+            chip.Count = _allOperators.Count(o => MatchesSource(o) && o.Normal.Traits.Concat(o.Elite.Traits).Any(t => t.TraitType == chip.Value));
         foreach (var chip in TimingChips)
         {
             var tag = $"<{chip.Value}>";
-            chip.Count = _allOperators.Count(o => o.Normal.Traits.Concat(o.Elite.Traits).Any(t => t.TraitDescription.Contains(tag)));
+            chip.Count = _allOperators.Count(o => MatchesSource(o) && o.Normal.Traits.Concat(o.Elite.Traits).Any(t => t.TraitDescription.Contains(tag)));
         }
     }
 
@@ -299,8 +316,8 @@ public partial class OperatorBrowseViewModel : ObservableObject
 
     private void RefreshCovenantChoices()
     {
-        var core = _allOperators.SelectMany(o => o.CoreCovenants).Where(c => c.Length > 0).ToHashSet();
-        var other = _allOperators.SelectMany(o => o.AdditionalCovenants).Where(c => c.Length > 0 && !core.Contains(c));
+        var core = _allOperators.Where(MatchesSource).SelectMany(o => o.CoreCovenants).Where(c => c.Length > 0).ToHashSet();
+        var other = _allOperators.Where(MatchesSource).SelectMany(o => o.AdditionalCovenants).Where(c => c.Length > 0 && !core.Contains(c));
         UpdateChoices(AvailableCoreCovenants, ["", .. core.Where(c => !OnlyCurrentRun || HighlightedCovenants.Contains(c)).Order()]);
         UpdateChoices(AvailableOtherCovenants, ["", .. other.Where(c => !OnlyCurrentRun || HighlightedCovenants.Contains(c)).Distinct().Order()]);
         _selectedCoreCovenantFilters.RemoveWhere(c => !AvailableCoreCovenants.Contains(c));
@@ -361,7 +378,7 @@ public partial class OperatorBrowseViewModel : ObservableObject
 
     private void ApplyFilters()
     {
-        var filtered = _allOperators.AsEnumerable();
+        var filtered = _allOperators.Where(MatchesSource);
 
         if (SelectedAvailabilityFilter != AvailabilityFilter.All && _isBannedCheck != null)
         {
@@ -442,8 +459,9 @@ public partial class OperatorBrowseViewModel : ObservableObject
     }
 
     /// <summary>提示文案：勾选「同时选中」而结果为空时，说明是“同时满足”导致的。</summary>
-    public string EmptyListMessage =>
-        CoreCovenantMatchAll || OtherCovenantMatchAll
+    public string EmptyListMessage => SelectedOperatorSource == OperatorSourceFilter.Custom && CustomSelectionCount == 0
+        ? "还未选择自选干员"
+        : CoreCovenantMatchAll || OtherCovenantMatchAll
             ? "没有同时满足所选条件的干员"
             : "没有符合条件的干员";
 

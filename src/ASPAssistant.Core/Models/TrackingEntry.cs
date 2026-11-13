@@ -54,6 +54,9 @@ public class TrackingEntry
     [JsonPropertyName("expiresAt")]
     public int ExpiresAt { get; set; }
 
+    [JsonPropertyName("origins")]
+    public List<TrackingOrigin> Origins { get; set; } = [];
+
     [JsonIgnore]
     public bool IsTransition => Role == TrackingRole.Transition;
 

@@ -1,6 +1,7 @@
 ﻿<div align="center">
   <img src="data/icons/aspa_logo.png" width="96" height="96" alt="鸿雪画框图标"/>
-  <h1>ASP Assistant · Arknights</h1>
+  <h1>鸿雪·卫戍助手</h1>
+  <p>Hongxue Stronghold Companion</p>
   <p>明日方舟·卫戍协议 辅助工具<br/>基于 Moonfair/ASP_Assistant 修改，由 MaaFramework 提供图像识别能力。</p>
   <p>
     <img src="https://img.shields.io/badge/platform-Windows-blue?style=flat-square" alt="Windows"/>
@@ -8,33 +9,48 @@
     <img src="https://img.shields.io/badge/game-卫戍协议·规程-orange?style=flat-square" alt="卫戍协议·规程"/>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-green?style=flat-square" alt="Apache 2.0"/></a>
   </p>
-  <p><a href="https://github.com/Moonfair/ASP_Assistant">原项目</a> · <a href="https://github.com/bingyunhe/asp-assistant-arknights/issues">问题反馈</a></p>
+  <p><a href="https://github.com/Moonfair/ASP_Assistant">原项目</a> · <a href="https://github.com/bingyunhe/hongxue-stronghold-companion/issues">问题反馈</a></p>
 </div>
 
 ---
 
 > **项目来源**：本项目是在 [Moonfair/ASP_Assistant](https://github.com/Moonfair/ASP_Assistant) 基础上修改的独立衍生版本，保留原项目 Apache License 2.0 协议与归属声明。感谢 Moonfair 及上游贡献者。本仓库不是原作者发布的版本。
 >
-> 上游基线：[`93b2ba8`](https://github.com/Moonfair/ASP_Assistant/commit/93b2ba8514f6591a67e4cbf5a6169dee7d065bf6)。本次修改日期为 **2026-11-09**；改动范围见各文件头部声明。
+> 上游基线：[`93b2ba8`](https://github.com/Moonfair/ASP_Assistant/commit/93b2ba8514f6591a67e4cbf5a6169dee7d065bf6)。改动范围见各文件头部声明及发布说明。
 
 ## 截图
 
-以下为测试数据生成的界面截图，不含个人游戏记录。
+以下图片由当前开发程序直接渲染，使用公开游戏数据和示例阵容，不含个人游戏记录。功能与截图以当前开发源码为准，可下载版本的内容以发布页说明为准。
 
-<div align="center">
-  <img src="docs/images/operators-dark.png" width="300" alt="深色主题干员筛选"/>
-  <img src="docs/images/operators-light.png" width="300" alt="浅色主题干员筛选"/>
-</div>
+**干员浏览 · 深色 / 浅色**
 
-| 干员悬停详情 | 装备数值对比 | 多队伍追踪 |
-| :---: | :---: | :---: |
-| ![普通与精锐详情](docs/images/operator-details.png) | ![装备界面](docs/images/equipment-light.png) | ![追踪界面](docs/images/tracking-light.png) |
+<p align="center">
+  <img src="docs/images/operators-dark.png" width="300" alt="鸿雪卫戍助手：深色干员浏览"/>
+  <img src="docs/images/operators-light.png" width="300" alt="鸿雪卫戍助手：浅色干员浏览"/>
+</p>
+
+**装备浏览与购买清单**
+
+<p align="center">
+  <img src="docs/images/equipment-light.png" width="300" alt="新版装备筛选与浏览"/>
+  <img src="docs/images/tracking-light.png" width="300" alt="新版干员和装备购买清单"/>
+</p>
+
+**阵容编辑**
+
+![阵容阶段、干员配置与盟约统计](docs/images/lineup-editor.png)
+
+**森空岛攻略导入**
+
+<p align="center">
+  <img src="docs/images/import-guide.png" width="460" alt="攻略站入口、导入教程与复制示例按钮"/>
+</p>
 
 ## 功能简介
 
-ASP Assistant · Arknights 是运行于《明日方舟》游戏窗口旁的侧边辅助工具，提供干员、装备查询，追踪列表、阵容管理、Ban 位录入与站位规划。
+鸿雪·卫戍助手是运行于《明日方舟》游戏窗口旁的侧边辅助工具，提供干员、装备查询，追踪列表、阵容管理、Ban 位录入与站位规划。
 
-当前版本为 **v1.7.1**，新增阵容窗口最小化与追踪“已获取”；v1.7.0 起初步支持 MuMu / ADB 连接、模拟器商店追踪与本局信息录入，支持单人模式两种开局信息页布局及高难 10/16 盟约识别。旧版用户可从本仓库 Releases 更新。
+项目原名 ASP Assistant · Arknights。为保留旧配置与更新兼容性，程序文件仍名为 `ASPAssistant.App.exe`，用户数据目录不变。
 
 ### 阵容规划
 
@@ -43,17 +59,17 @@ ASP Assistant · Arknights 是运行于《明日方舟》游戏窗口旁的侧�
 - 候选显示转职目标、调和加成及自由位置，可直接保存为阵容或加入追踪。
 - 需要叠层、精锐等额外条件的Ⅱ档会标注，规划只保证对应人数，其他条件需自行确认。
 - 达到搜索上限时明确提示；未找到候选不代表已证明无解。
-- 感谢 CarlosDJY（Jiayu Ding）通过 [PR #1](https://github.com/bingyunhe/asp-assistant-arknights/pull/1) 贡献阵容规划等功能。
+- 感谢 CarlosDJY（Jiayu Ding）通过 [PR #1](https://github.com/bingyunhe/hongxue-stronghold-companion/pull/1) 贡献阵容规划等功能。
 
 ### 站位规划（实验）
 
-- 追踪页顶部切换「购买清单 / 站位」。站位页识别当前卫戍协议地图（10 张，商店收起 / 展开两种镜头），也可手动选图；场上站满干员时仍可识别，暂时看不到棋盘时沿用上次的地图。
+- 追踪页顶部切换到「地图模拟」。地图模拟页识别当前卫戍协议地图（10 张，商店收起 / 展开两种镜头），也可手动选图；场上站满干员时仍可识别，暂时看不到棋盘时沿用上次的地图。
 - 从干员池里挑 8／9 人上场，给出格子和朝向：按两条敌人路线的拦截点、纵深（重装在前、远程在后）、奶的覆盖、阻挡数和地块效果（红地板、沼泽、蓝箭头、城区、宫殿）打分，并保证至少一个奶上场。
 - 计入位置相关的叠层特质（身前 / 身后、周围、同一行、攻击范围内）、塞雷娅复制特质、涤火杰西卡（按满层）、整备区也生效的干员和盟约激活。
 - 小棋盘显示头像，可拖动换位或「固定在这里」后围绕它重新规划；支持同名干员重复上场（盟约只按不同干员计数）。检查项区分硬要求与地块提示。
 - 干员池：追踪的最终 / 过渡干员默认灰色，点亮即已拥有；扩展池列出与阵容共享盟约的未追踪干员，按阶数切换；可手动添加、标记精锐和同名数量。
-- 游戏内显示默认关闭，在站位页底部开启后，在游戏画面上标出格框、朝向和名牌。
-- 打分权重是估计值，不是游戏数值；阿戈尔吞噬、雪原隐匿格和飞行敌人尚未纳入，结果仅供参考。
+- 游戏内显示默认关闭，在地图模拟页底部开启后，在游戏画面上标出格框、朝向和名牌。
+- 根据手动选择的干员池规划位置与朝向；打分权重是估计值，结果仅供参考。
 
 ### 干员浏览与筛选
 
@@ -68,11 +84,8 @@ ASP Assistant · Arknights 是运行于《明日方舟》游戏窗口旁的侧�
 
 - 按等阶、功能类型及普通 / 转职装备类别筛选，支持名称搜索与追踪；移除当前赛季没有匹配项的“专属”分类。
 - 等阶和功能类型支持多选，类型可切换为“同时选中”。功能类型分攻击、防御、生存、技力、经济、盟约、其他，一件装备可属于多类，卡片显示对应标签；分类由项目手工维护。
-- 名称显示在图片上方，取消普通 / 精锐切换按钮。
-- 有数值差异时直接合并，例如 `攻击力+15(25%)%`，高亮普通数值 `15`，括号内为精锐数值。
-- 没有精锐版本时显示“无精锐装备”；转职装备显示对应盟约。
-- 非数值差异保留两种完整说明，例如“博士投影”的不同生效时机。
-- 修复选择等阶后无法重新选择“全部”的问题。
+- 卡片显示装备缩略图、名称、等阶与分类，悬停查看详细效果。
+- 支持普通与精锐效果对比；转职装备显示对应盟约，方便核对阵容需求。
 
 ### 追踪与阵容
 
@@ -82,17 +95,25 @@ ASP Assistant · Arknights 是运行于《明日方舟》游戏窗口旁的侧�
 - 阵容编辑器和追踪页显示计划转职，支持分别取消并同步计数；追踪页的目标盟约分布包含计划转职与调和加成。
 - 计划转职随阵容和追踪记录保存；多队伍追踪时，同名干员采用最近追踪阵容的转职计划。
 - 多队伍共用一份追踪列表，移除目标会从共用列表中移除。
-- 追踪目标可右键「标记已获取」：保留在列表中但不再在商店标出，也不计入目标盟约分布；再次右键或重新追踪即恢复。
+- 追踪目标可标记为已获取，保留记录并停止商店高亮；可在待完成、已完成和全部列表之间切换，也可恢复追踪。
 - 阵容编辑器、选择干员等对话框可最小化。
 - 商店名称栏识别同时读取追踪干员和装备，在目标名称上方显示绿色标记；按实际名称位置定位，不固定为五格，已售空槽不挤占其他目标的位置。
 - 灰色卡、冻结雪花与金色扫光均可参与名称识别。装备金光表示可升精锐；角色金光也可能仅表示已持有同名角色，本工具不据此判断三连或升级。
+
+### 森空岛攻略导入
+
+1. 在阵容页点击“导入”，通过“打开森空岛攻略站”选择喜欢的攻略。
+2. 打开具体攻略，复制其详情网址，粘贴到输入框并点击“确定”；也可点击“复制示例并填入”体验导入。
+3. 在编辑器中核对干员、精锐、策略和阶段信息，确认后点击“保存”。
+
+超过九人的攻略按本数分为前期（一本、二本）、中期（三本、四本）和后期（五本、六本）；九人以内保留为后期阵容。推荐装备与回合讲解请查看来源攻略，导入不会自动开启追踪。也支持 dpaste.com 阵容分享链接和阵容 JSON。
 
 ### 截屏录入 Ban 位
 
 - 开局信息页自动录入；“截屏录入”按钮及快捷键读取核心盟约、附加盟约、Ban 位和敌人，支持开局后从游戏内重新打开的信息页，无需顶部“确认本局信息”标题。
 - 缩放、最小化、失焦或标题漏读不会重新允许自动录入；看到明确对局画面后才准备识别下一次开局信息页。自动未录入时，可打开局内信息页手动补录。
-- 游戏被其他应用覆盖且不在前台时暂停截屏；请先将游戏置前、打开信息页，再点击录入。截图会短暂隐藏辅助和覆盖层以避免遮挡。
-- 重试过程中保留旧结果，失败只提示；完整有效的盟约结果更新 Ban 和高亮，敌人信息独立校验，敌人识别失败不阻止盟约录入。识别忙碌时禁用重复录入，不自动滚动游戏重试。
+- PC 录入时尝试将游戏置前，截图期间短暂隐藏辅助和覆盖层。请先打开信息页；取得前台失败时不会发送滚动输入。
+- 重试过程中保留旧结果，失败只提示；完整有效的盟约结果更新 Ban 和高亮，敌人信息独立校验，敌人识别失败不阻止盟约录入。识别忙碌时禁用重复录入。开局盟约面板显示不全时自动下滚补读，最多三次，读全后才录入；局内信息页保持只读。
 
 ### 本局敌人识别
 
@@ -109,21 +130,20 @@ ASP Assistant · Arknights 是运行于《明日方舟》游戏窗口旁的侧�
 - 支持窗口置顶、拖动和缩放；调整六个页面的内容宽度与筛选布局。
 - 游戏最小化时同步最小化辅助并隐藏标记；恢复游戏后恢复由游戏联动收起的辅助。提前手动最小化的辅助保持最小化。
 - 商店星号忽略小于 6 个界面像素的 OCR 位置变化，减少文字框抖动；明显移动继续跟随。
-- 版本号为 0.0.0 的开发构建跳过更新检查；正式发行版仅检查本仓库 GitHub Releases。
+- 开发构建跳过更新检查；正式发行版仅检查本仓库 GitHub Releases，更新公告显示标题和更新内容。
 - 自动更新校验 `SHA256SUMS.txt`，缺失或不匹配时停止；更新采用同盘目录替换，替换或启动失败时尝试回滚并显示失败原因。
 
-## 当前数据与限制
+## 数据与适用范围
 
 | 项目 | 状态 |
 | --- | --- |
 | 数据赛季 | 卫戍协议·规程·序列 I，`act3autochess` / `V3_1` |
 | 干员 / 装备 / 盟约 | 141 / 70 / 26 |
 | 核心转职盟约 | 从游戏表 `giveBondId` 生成映射；其他转职盟约沿用名称匹配 |
-| Ban 位识别 | 单张截图结合图标亮灰与 OCR 名称吸附，支持合并名称拆分；未命名图标会报告，仍受画面布局影响 |
-| 商店追踪识别 | 收录三款主题共 14 张 1080p 实拍脱敏图，覆盖一本四格、二本五格、四本六格、灰色、冻结、扫光、重复干员和售空；默认终端漏读时补读精确名称行。720p 与超宽留边使用合成图验证，原生超宽屏、其他 DPI 及终端／乌萨斯六本待实测 |
-| 站位地图识别 | 收录 10 张地图的可部署格、敌人路线与特殊地块，按格子颜色匹配地图与镜头；已用实拍截图验证，MuMu 下仅验证编译 |
-| 场上与备战区干员识别 | 尚未实现，站位规划使用干员池中手动点亮的干员 |
-| 首领 / 敌人 | 新版右侧区域识别流程已通过两张 1080p 实拍图验证；详情保留原有资料，尚未完整同步本赛季，未收录内容单独提示 |
+| Ban 位识别 | 结合图标亮灰与 OCR 名称识别，支持开局自动补读和局内信息页手动录入；结果仍受画面布局影响 |
+| 商店追踪识别 | 支持三款商店主题及灰色、冻结、扫光等状态；实际效果受分辨率、缩放和游戏界面影响 |
+| 站位地图识别 | 识别地图与镜头，也可手动选图；使用手动选择的干员池生成站位参考 |
+| 首领 / 敌人 | 识别右侧首领和特训敌人；有资料时展示详情，缺少资料时保留识别文字供核对 |
 | 自动更新 | 只读取本仓库发布，校验 SHA256 后替换目录；更新失败尝试回滚，仍需自行退出旧实例再手动安装时请保留个人配置 |
 
 ## 运行要求
@@ -152,22 +172,22 @@ ADB 模式使用 MaaFramework 读取游戏截图，游戏被其他窗口遮挡�
 
 ## 获取与构建
 
-无需编译的 Windows x64 独立运行包可在 [Releases](https://github.com/bingyunhe/asp-assistant-arknights/releases/latest) 获取。
+无需编译的 Windows x64 独立运行包可在 [Releases](https://github.com/bingyunhe/hongxue-stronghold-companion/releases/latest) 获取。
 
-1. 下载 `ASPAssistant-v1.7.1-win-x64.zip`，不要选择 `Source code` 源码压缩包。
+1. 在最新 Release 的 Assets 中下载以 `-win-x64.zip` 结尾的 Windows 包，不要选择 `Source code` 源码压缩包。
 2. 右键“全部解压”到独立目录，保留全部文件和 `data`、`runtimes` 文件夹。
 3. 双击 `ASPAssistant.App.exe` 启动。无需另外安装 .NET；包内带有识别模型和所需运行库。
 4. 更新时先退出旧程序，再解压新版。个人追踪与阵容设置存放于本机用户数据目录。
 
-发布页同时提供 `SHA256SUMS.txt`，可用 `Get-FileHash .\ASPAssistant-v1.7.1-win-x64.zip -Algorithm SHA256` 核对下载完整性；`PACKAGE-MANIFEST.txt` 记录 CI 解包检查后的版本、资源数量及 ZIP 哈希。详细说明见 [本版发行说明](RELEASE_NOTES.md)。
+发布页同时提供 `SHA256SUMS.txt`，可用 PowerShell 的 `Get-FileHash` 命令计算所下载 ZIP 的 SHA256 并核对；`PACKAGE-MANIFEST.txt` 记录 CI 解包检查后的版本、资源数量及 ZIP 哈希。详细说明见 [最新发布说明](https://github.com/bingyunhe/hongxue-stronghold-companion/releases/latest)。
 
 如果需要从源码构建：
 
 安装 .NET 8 SDK 后，在 PowerShell 中运行：
 
 ```powershell
-git clone https://github.com/bingyunhe/asp-assistant-arknights.git
-cd asp-assistant-arknights
+git clone https://github.com/bingyunhe/hongxue-stronghold-companion.git
+cd hongxue-stronghold-companion
 dotnet restore ASPAssistant.sln
 dotnet test src/ASPAssistant.Tests/ASPAssistant.Tests.csproj -c Release
 dotnet run --project src/ASPAssistant.App

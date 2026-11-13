@@ -11,6 +11,25 @@ namespace ASPAssistant.Tests.Services;
 
 public class LineupShareServiceTests : IDisposable
 {
+    [Fact]
+    public async Task ExistingCacheWithoutSourceUrlKeepsItsOriginalFingerprint()
+    {
+        var lineup = new Lineup { Name = "已有阵容", Slots = [new() { OperatorName = "角峰" }] };
+        var oldContent = JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            lineup.Name, lineup.Slots, lineup.EarlySlots, lineup.MidSlots, lineup.SupportSlots, lineup.Strategies
+        });
+        Directory.CreateDirectory(CacheDirectory);
+        var key = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(oldContent));
+        await File.WriteAllTextAsync(Path.Combine(CacheDirectory, key + ".json"),
+            JsonSerializer.Serialize(new { Url = "https://dpaste.com/KEPT", CreatedAt = DateTimeOffset.UtcNow }));
+        using var handler = new ShareHandler();
+        using var http = new HttpClient(handler);
+        (await new LineupShareService(EquipmentTestData.Rules, CacheDirectory, http).ExportAsync(lineup))
+            .Should().Be("https://dpaste.com/KEPT");
+        handler.Calls.Should().Be(0);
+    }
+
     private readonly string _directory = Path.Combine(Path.GetTempPath(), $"lineup_share_{Guid.NewGuid():N}");
     private string CacheDirectory => Path.Combine(_directory, "share-links");
 
@@ -52,6 +71,7 @@ public class LineupShareServiceTests : IDisposable
     [InlineData("legacyTransformation")]
     [InlineData("strategy")]
     [InlineData("strategyTag")]
+    [InlineData("sourceUrl")]
     public async Task ChangedContentGetsNewLinkAndReturningToOriginalReusesItsLink(string change)
     {
         using var handler = new ShareHandler();
@@ -78,6 +98,7 @@ public class LineupShareServiceTests : IDisposable
             case "legacyTransformation": lineup.Slots[0].TransformedCovenant = "助力"; break;
             case "strategy": lineup.Strategies[0].StrategyId = "band_amiya"; break;
             case "strategyTag": lineup.Strategies[0].Tags.Add(StrategyTag.优选); break;
+            case "sourceUrl": lineup.SourceUrl = SklandGuideImporterTests.Url; break;
         }
 
         (await service.ExportAsync(lineup)).Should().NotBe(originalUrl);

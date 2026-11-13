@@ -118,7 +118,7 @@ public sealed class LineupRoutePlanner
         var stageCount = request.Stages.Count;
         // Earlier layers accumulate for more rounds: 开局 1.3 … 四本 0.85 with the default four stages.
         double StageWeight(int s) => 0.7 + 0.15 * (stageCount - s);
-        var pool = _operators
+        var pool = _operators.Where(o => o.IsAvailableForSelection)
             .Where(o => !request.BannedOperators.Contains(o.Name))
             .Where(o => !request.ExcludeMixedBannedOperators || !_planner.IsExcludedByBans(o, request.BannedCovenants))
             .ToList();

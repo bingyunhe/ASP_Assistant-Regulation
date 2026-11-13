@@ -46,6 +46,15 @@ public class ThemeAndHighlightTests
                         Source = new Uri($"/ASPAssistant.App;component/Resources/{resource}", UriKind.Relative)
                     });
 
+                OperatorPickerTests.VerifySelection();
+                LineupFeatureTests.Verify();
+                UpdateAndTrayTests.Verify();
+                TrackingWorkflowViewTests.Verify();
+                TrackingWorkflowViewTests.VerifyWorkflow();
+                TrackingWorkflowViewTests.VerifyEquipmentAndGroups();
+                ClearAndLineupSourceViewTests.Verify();
+                SklandImportViewTests.Verify();
+
                 var info = new ASPAssistant.Core.Services.UpdateInfo(
                     "v9.9.9", "9.9.9", "- 测试更新说明", "https://example.test/a.zip", "a.zip", null);
                 // 不 Show()：在测试宿主里显示窗口会拉起到前台并可能拖垮 testhost。

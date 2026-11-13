@@ -13,6 +13,23 @@ namespace ASPAssistant.App.Controls;
 /// </summary>
 public partial class EquipmentCell : UserControl
 {
+    public static readonly DependencyProperty IsAcquiredProperty = DependencyProperty.Register(
+        nameof(IsAcquired), typeof(bool), typeof(EquipmentCell), new PropertyMetadata(false,
+            (d, _) => ((EquipmentCell)d).UpdateTrackButton()));
+    public bool IsAcquired
+    {
+        get => (bool)GetValue(IsAcquiredProperty);
+        set => SetValue(IsAcquiredProperty, value);
+    }
+
+    public static readonly RoutedEvent AcquisitionRequestedEvent = EventManager.RegisterRoutedEvent(
+        "AcquisitionRequested", RoutingStrategy.Bubble, typeof(RoutedEventHandler), typeof(EquipmentCell));
+    public event RoutedEventHandler AcquisitionRequested
+    {
+        add => AddHandler(AcquisitionRequestedEvent, value);
+        remove => RemoveHandler(AcquisitionRequestedEvent, value);
+    }
+
     public static readonly RoutedEvent TrackingToggledEvent = EventManager.RegisterRoutedEvent(
         "TrackingToggled", RoutingStrategy.Bubble, typeof(RoutedEventHandler), typeof(EquipmentCell));
 
@@ -71,6 +88,9 @@ public partial class EquipmentCell : UserControl
 
     private void UpdateTrackButton()
     {
+        AcquireButton.Visibility = IsTrackingList ? Visibility.Visible : Visibility.Collapsed;
+        AcquireButton.Content = IsAcquired ? "已获取" : "获取";
+        AcquireButton.IsEnabled = !IsAcquired;
         TrackButton.Tag = TryFindResource(IsTrackingList ? "IconClose" : "IconStar");
         TrackButton.ToolTip = IsTrackingList || IsTracked ? "取消追踪装备" : "追踪装备";
         TrackButton.Visibility = IsTrackingList || IsTracked || CardBorder.IsMouseOver ? Visibility.Visible : Visibility.Collapsed;
@@ -95,6 +115,9 @@ public partial class EquipmentCell : UserControl
         UpdateTrackButton();
         RaiseEvent(new RoutedEventArgs(TrackingToggledEvent, this));
     }
+
+    private void OnAcquireClick(object sender, RoutedEventArgs e)
+        => RaiseEvent(new RoutedEventArgs(AcquisitionRequestedEvent, this));
 
     private void OnPreviewMouseWheel(object sender, MouseWheelEventArgs e) => DetailsToolTip.IsOpen = false;
 

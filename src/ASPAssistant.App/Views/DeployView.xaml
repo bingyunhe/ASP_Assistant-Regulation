@@ -33,7 +33,7 @@
 
     <DockPanel>
         <!-- Footer: show in game + recompute -->
-        <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0" Padding="10,7"
+        <Border x:Name="MapFooter" DockPanel.Dock="Bottom" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0" Padding="10,7"
                 Background="{DynamicResource CardBackgroundBrush}">
             <DockPanel>
                 <Button DockPanel.Dock="Right" x:Name="RecomputeButton" Content="重新计算" Tag="accent"
@@ -47,7 +47,7 @@
             </DockPanel>
         </Border>
 
-        <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
             <StackPanel Margin="10,10,5,8">
                 <!-- ── Main view ─────────────────────────────────────────── -->
                 <StackPanel x:Name="MainPanel">
@@ -122,20 +122,6 @@
                     <Border x:Name="BenchCard" Style="{StaticResource DeployCard}" Padding="10,8">
                         <StackPanel>
                             <DockPanel>
-                                <Button x:Name="PoolButton" DockPanel.Dock="Right" Tag="accent" Height="26" Padding="8,0,6,0"
-                                        Style="{StaticResource SmallActionButton}" Click="OnOpenPool" ToolTip="管理已拥有的干员">
-                                    <StackPanel Orientation="Horizontal">
-                                        <Path Data="{StaticResource IconLineups}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                              StrokeThickness="1.6" Width="11" Height="11" Stretch="Uniform" VerticalAlignment="Center" />
-                                        <TextBlock Text="干员池" Margin="5,0,0,0" FontWeight="Bold" VerticalAlignment="Center" />
-                                        <Border x:Name="PoolCountBadge" CornerRadius="7" MinWidth="16" Height="14" Margin="5,0,0,0" Padding="4,0"
-                                                Background="{DynamicResource AccentSolidBrush}" VerticalAlignment="Center">
-                                            <TextBlock x:Name="PoolCountText" FontSize="9.5" FontWeight="Bold" Foreground="{DynamicResource OnAccentBrush}"
-                                                       HorizontalAlignment="Center" VerticalAlignment="Center" FontFamily="{DynamicResource NumberFontFamily}" />
-                                        </Border>
-                                        <TextBlock Text="›" Margin="5,0,0,1" FontSize="13" VerticalAlignment="Center" />
-                                    </StackPanel>
-                                </Button>
                                 <TextBlock x:Name="PoolSummary" FontSize="11" FontWeight="Bold" VerticalAlignment="Center"
                                            Foreground="{DynamicResource TextPrimaryBrush}" />
                                 <TextBlock x:Name="PoolMeta" FontSize="10" Margin="6,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
@@ -149,8 +135,6 @@
                 <!-- ── Pool view ─────────────────────────────────────────── -->
                 <StackPanel x:Name="PoolPanel" Visibility="Collapsed">
                     <DockPanel Margin="0,0,5,6">
-                        <Button DockPanel.Dock="Left" Content="‹" Width="32" Height="32" Padding="0" Margin="0,0,6,0" FontSize="16"
-                                Style="{StaticResource SmallActionButton}" Click="OnBackToMain" ToolTip="返回站位" />
                         <Border Height="32" CornerRadius="{DynamicResource RowCornerRadius}" BorderThickness="1"
                                 Background="{DynamicResource InputBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}">
                         <Grid>
@@ -164,18 +148,14 @@
                         </Grid>
                         </Border>
                     </DockPanel>
-                    <DockPanel Margin="0,0,5,4">
-                        <ListBox x:Name="PoolFilterList" DockPanel.Dock="Left" Style="{StaticResource SegmentedListBox}"
-                                 SelectionChanged="OnPoolFilterChanged" SelectedIndex="0">
-                            <ListBoxItem Content="全部" />
-                            <ListBoxItem Content="已拥有" />
+                    <WrapPanel Margin="0,0,5,6">
+                        <ListBox x:Name="PoolFilterList" Style="{StaticResource SegmentedListBox}" SelectionChanged="OnPoolFilterChanged" SelectedIndex="0" Margin="0,0,6,4">
+                            <ListBoxItem Content="全部" /><ListBoxItem Content="已获取" />
                         </ListBox>
-                        <Button DockPanel.Dock="Right" Content="＋ 添加" Margin="5,0,0,0" Tag="accent" Style="{StaticResource SmallActionButton}" Click="OnAddOther" />
-                        <Button DockPanel.Dock="Right" Content="本阶段全拥有" Margin="5,0,0,0" Style="{StaticResource SmallActionButton}" Click="OnOwnCurrentStage"
-                                ToolTip="把最终阵容和还没过期的过渡干员全部点亮" />
-                        <TextBlock x:Name="PoolHeaderMeta" FontSize="10" Margin="6,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                   Foreground="{DynamicResource TextSecondaryBrush}" />
-                    </DockPanel>
+                        <Button Content="本阶段已获取" Margin="0,0,5,4" Style="{StaticResource SmallActionButton}" Click="OnOwnCurrentStage" ToolTip="标记大成与未过期过渡干员已获取，不会自动标记精锐" />
+                        <Button Content="＋ 添加" Margin="0,0,0,4" Tag="accent" Style="{StaticResource SmallActionButton}" Click="OnAddOther" />
+                    </WrapPanel>
+                    <TextBlock x:Name="PoolHeaderMeta" FontSize="10.5" TextWrapping="Wrap" Margin="2,0,5,7" Foreground="{DynamicResource TextSecondaryBrush}" />
                     <StackPanel x:Name="PoolGroups" Margin="0,0,5,0" />
                 </StackPanel>
 

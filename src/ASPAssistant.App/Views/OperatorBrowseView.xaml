@@ -3,6 +3,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="clr-namespace:ASPAssistant.App.Controls"
+             xmlns:viewModels="clr-namespace:ASPAssistant.Core.ViewModels;assembly=ASPAssistant.Core"
              xmlns:componentModel="clr-namespace:System.ComponentModel;assembly=WindowsBase"
              Background="{DynamicResource PanelBackgroundBrush}">
     <UserControl.Resources>
@@ -22,6 +23,26 @@
     </UserControl.Resources>
 
     <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Margin="10,10,10,0">
+            <ListBox x:Name="OperatorSourceList" HorizontalAlignment="Left" Style="{StaticResource SegmentedListBox}"
+                     SelectedValuePath="Tag" SelectedValue="{Binding SelectedOperatorSource}">
+                <ListBoxItem Content="默认干员" Tag="{x:Static viewModels:OperatorSourceFilter.Default}" />
+                <ListBoxItem Content="自选干员" Tag="{x:Static viewModels:OperatorSourceFilter.Custom}" />
+            </ListBox>
+            <Button x:Name="ManageCustomOperatorsButton" HorizontalAlignment="Left" Margin="0,8,0,0"
+                    Click="OnManageCustomOperators"
+                    ToolTip="从候选目录中选择最多 12 名干员，暂不区分五本、六本">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource SmallActionButton}">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers><DataTrigger Binding="{Binding SelectedOperatorSource}" Value="{x:Static viewModels:OperatorSourceFilter.Custom}">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger></Style.Triggers>
+                    </Style>
+                </Button.Style>
+                <TextBlock Text="{Binding CustomSelectionCount, StringFormat=管理自选 · {0}/12}" />
+            </Button>
+        </StackPanel>
         <!-- Run banner: this run's bans · 重新录入 · ⋯ (只看本局盟约 / 清除录入 / 清除本局 Ban 位) -->
         <Border DockPanel.Dock="Top" Margin="10,10,10,0" Padding="10,8" Background="{DynamicResource CardBackgroundBrush}"
                 BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="{DynamicResource CardCornerRadius}">
@@ -136,6 +157,14 @@
                 Visibility="{Binding IsChecked, ElementName=FilterToggle, Converter={StaticResource DetailsBoolToVis}}">
             <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="430">
                 <StackPanel>
+                    <StackPanel>
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Style.Triggers><DataTrigger Binding="{Binding SelectedOperatorSource}" Value="{x:Static viewModels:OperatorSourceFilter.Custom}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger></Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
                     <TextBlock Text="等阶" Style="{StaticResource FilterSectionTitle}" Margin="0,0,0,7" />
                     <ItemsControl ItemsSource="{Binding TierChips}" Focusable="False" Margin="0,0,-4,0">
                         <ItemsControl.ItemsPanel>
@@ -145,6 +174,7 @@
                             <DataTemplate><ToggleButton Style="{StaticResource TierCellToggle}" /></DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                    </StackPanel>
 
                     <Border Height="1" Margin="0,12" Background="{DynamicResource LineBrush}" />
 
@@ -201,7 +231,21 @@
                     <ItemsPanelTemplate><VirtualizingStackPanel /></ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.GroupStyle>
-                    <GroupStyle HeaderTemplate="{StaticResource TierGroupHeader}">
+                    <GroupStyle>
+                        <GroupStyle.HeaderTemplate>
+                            <DataTemplate>
+                                <ContentControl Content="{Binding}" ContentTemplate="{StaticResource TierGroupHeader}">
+                                    <ContentControl.Style>
+                                        <Style TargetType="ContentControl">
+                                            <Style.Triggers><DataTrigger Binding="{Binding DataContext.SelectedOperatorSource, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                                        Value="{x:Static viewModels:OperatorSourceFilter.Custom}">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                            </DataTrigger></Style.Triggers>
+                                        </Style>
+                                    </ContentControl.Style>
+                                </ContentControl>
+                            </DataTemplate>
+                        </GroupStyle.HeaderTemplate>
                         <GroupStyle.Panel>
                             <ItemsPanelTemplate><VirtualizingStackPanel /></ItemsPanelTemplate>
                         </GroupStyle.Panel>
@@ -214,15 +258,22 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <controls:EmptyState x:Name="EmptyFilterText" Icon="{StaticResource IconOperators}" Title="{Binding EmptyListMessage}"
-                                 Hint="换个关键词，或在筛选里点“重置”。">
+            <controls:EmptyState x:Name="EmptyFilterText" Icon="{StaticResource IconOperators}" Title="{Binding EmptyListMessage}">
                 <controls:EmptyState.Style>
                     <Style TargetType="controls:EmptyState">
                         <Setter Property="Visibility" Value="Collapsed" />
+                        <Setter Property="Hint" Value="换个关键词，或在筛选里点“重置”。" />
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding FilteredOperators.Count}" Value="0">
                                 <Setter Property="Visibility" Value="Visible" />
                             </DataTrigger>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding SelectedOperatorSource}" Value="{x:Static viewModels:OperatorSourceFilter.Custom}" />
+                                    <Condition Binding="{Binding CustomSelectionCount}" Value="0" />
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Hint" Value="点上方“管理自选”，选择最多 12 名干员。" />
+                            </MultiDataTrigger>
                         </Style.Triggers>
                     </Style>
                 </controls:EmptyState.Style>

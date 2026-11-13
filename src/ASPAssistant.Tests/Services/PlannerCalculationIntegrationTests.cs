@@ -54,7 +54,7 @@ public class PlannerCalculationIntegrationTests
 
             var tracking = new TrackingViewModel();
             tracking.TrackLineup(editor.ToLineup());
-            var settings = new SettingsManager(directory);
+            var settings = new SettingsManager(Path.Combine(directory, "settings"));
             await settings.SaveTrackingEntriesAsync(tracking.AllEntries.ToList());
             tracking.LoadEntries(await settings.LoadTrackingEntriesAsync(_calculator.EquipmentRules));
             tracking.TrackedOperators.Single(e => e.Name == "甲").Equipments.Should().Contain("炎转职");

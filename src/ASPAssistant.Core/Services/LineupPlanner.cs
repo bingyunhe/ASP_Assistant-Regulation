@@ -81,7 +81,7 @@ public sealed class LineupPlanner
         if (bannedGoal is not null) return new PlannerResult { Error = $"核心盟约“{bannedGoal.Name}”本局已被 Ban。" };
         if (request.LockedOperators.Count > MaxLockedOperators) return new PlannerResult { Error = $"必带干员不能超过 {MaxLockedOperators} 人。" };
 
-        var candidates = _operators
+        var candidates = _operators.Where(o => o.IsAvailableForSelection)
             .Where(o => !request.BannedOperators.Contains(o.Name))
             .Where(o => !request.ExcludeMixedBannedOperators || !IsExcludedByBans(o, request.BannedCovenants))
             .ToList();

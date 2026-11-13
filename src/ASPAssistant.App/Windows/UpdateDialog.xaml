@@ -64,15 +64,15 @@
                            Foreground="{DynamicResource TextSecondaryBrush}"
                            FontSize="11" TextWrapping="Wrap"
                            Margin="0,0,0,6"
-                           Text="正在后台下载更新，完成后横幅将显示重启按钮。" />
+                           Text="点击“下载更新”后才会下载安装包。" />
 
                 <!-- Download progress -->
                 <DockPanel Margin="0,0,0,14">
                     <TextBlock x:Name="ProgressPercentText" DockPanel.Dock="Right"
-                               Text="0%" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"
+                               Visibility="Collapsed" Text="0%" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center"
                                Foreground="{DynamicResource SuccessTextBrush}" />
                     <ProgressBar x:Name="DialogProgress"
-                                 Height="4" Minimum="0" Maximum="100" Value="0"
+                                 Visibility="Collapsed" Height="4" Minimum="0" Maximum="100" Value="0"
                                  VerticalAlignment="Center"
                                  Background="{DynamicResource SectionBackgroundBrush}"
                                  Foreground="{DynamicResource AccentSolidBrush}"
@@ -81,7 +81,8 @@
 
                 <!-- Buttons -->
                 <DockPanel HorizontalAlignment="Right">
-                    <Button Content="关闭" Click="OnClose" Style="{StaticResource DialogSecondaryButton}" Margin="0" />
+                    <Button Content="关闭" Click="OnClose" Style="{StaticResource DialogSecondaryButton}" Margin="0,0,8,0" />
+                    <Button x:Name="DownloadButton" Content="下载更新" Click="OnDownload" Style="{StaticResource DialogPrimaryButton}" />
                 </DockPanel>
             </StackPanel>
         </DockPanel>

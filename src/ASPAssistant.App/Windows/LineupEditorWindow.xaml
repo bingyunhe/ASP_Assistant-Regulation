@@ -186,7 +186,7 @@
                         <Button Content="撤销修改" Style="{StaticResource EditorGhostButton}" Click="OnResetClick" Margin="0,0,10,0"
                                 ToolTip="恢复到打开编辑器时的样子" />
                         <Button Content="取消" Style="{StaticResource EditorSecondaryButton}" Click="OnCancelClick" Margin="0,0,8,0" />
-                        <Button Content="保存" Style="{StaticResource EditorPrimaryButton}" Click="OnSaveClick" />
+                        <Button x:Name="SaveButton" Content="保存" Style="{StaticResource EditorPrimaryButton}" Click="OnSaveClick" />
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
                         <Path x:Name="WarningIcon" Width="13" Height="12" Margin="0,0,6,0" Stretch="Uniform" Visibility="Collapsed"
@@ -196,6 +196,18 @@
                                    Foreground="{DynamicResource TextSecondaryBrush}" />
                     </StackPanel>
                 </DockPanel>
+            </Border>
+
+            <Border x:Name="SourcePanel" DockPanel.Dock="Top" Visibility="Collapsed" Margin="14,10,14,0" Padding="10"
+                    Background="{DynamicResource CardBackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="1" CornerRadius="{DynamicResource RowCornerRadius}">
+                <StackPanel>
+                    <TextBlock Text="来源攻略" Style="{StaticResource FilterSectionTitle}" Margin="0,0,0,5" />
+                    <TextBox x:Name="SourceUrlBox" IsReadOnly="True" TextWrapping="Wrap" Style="{StaticResource DialogTextBox}"
+                             ToolTip="可选中文字复制原攻略链接" />
+                    <TextBlock x:Name="ImportNoticeText" TextWrapping="Wrap" Margin="0,6,0,0" FontSize="11"
+                               Foreground="{DynamicResource TextSecondaryBrush}" />
+                </StackPanel>
             </Border>
 
             <Grid>

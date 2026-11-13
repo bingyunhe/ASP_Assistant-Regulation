@@ -91,7 +91,7 @@
                 <Grid Grid.Row="3">
                     <ListBox x:Name="OperatorsList" ItemsSource="{Binding FilteredOperators}" Background="Transparent" BorderThickness="0"
                              Foreground="{DynamicResource TextPrimaryBrush}" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                             MouseLeftButtonUp="OnOperatorClick" PreviewKeyDown="OnOperatorKeyDown">
+                             PreviewMouseLeftButtonDown="OnOperatorMouseDown" MouseLeftButtonUp="OnOperatorClick" PreviewKeyDown="OnOperatorKeyDown">
                         <ListBox.ItemsPanel>
                             <ItemsPanelTemplate><VirtualizingStackPanel /></ItemsPanelTemplate>
                         </ListBox.ItemsPanel>
@@ -125,8 +125,15 @@
                                 <DockPanel>
                                     <controls:Avatar DockPanel.Dock="Left" Width="34" Height="34" Margin="10,0,10,0" VerticalAlignment="Center"
                                                      Text="{Binding Name}" Source="{Binding IconPath}" />
-                                    <TextBlock DockPanel.Dock="Right" Text="{Binding Tier, Converter={StaticResource TierToRoman}, StringFormat={}{0} 阶}" VerticalAlignment="Center"
-                                               FontFamily="{DynamicResource NumberFontFamily}" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" />
+                                    <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center"
+                                               FontFamily="{DynamicResource NumberFontFamily}" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="{Binding Tier, Converter={StaticResource TierToRoman}, StringFormat={}{0} 阶}" />
+                                                <Style.Triggers><DataTrigger Binding="{Binding IsCustom}" Value="True"><Setter Property="Text" Value="自选" /></DataTrigger></Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                     <StackPanel VerticalAlignment="Center">
                                         <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" />
                                         <StackPanel Orientation="Horizontal" Margin="0,4,0,0">

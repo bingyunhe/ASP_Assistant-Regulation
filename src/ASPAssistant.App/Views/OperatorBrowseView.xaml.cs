@@ -21,6 +21,9 @@ public partial class OperatorBrowseView : UserControl
     public event Action? ClearBansRequested;
     public event Action? ClearRunRequested;
     public event Action? ManualScanRequested;
+    public event Action? ManageCustomOperatorsRequested;
+
+    private void OnManageCustomOperators(object sender, RoutedEventArgs e) => ManageCustomOperatorsRequested?.Invoke();
 
     public OperatorBrowseView()
     {

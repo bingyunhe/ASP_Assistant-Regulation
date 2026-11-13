@@ -28,6 +28,12 @@ public partial class LineupEditorWindow : Window
         _strategies = strategies;
         _operatorByName = vm.AllOperators.GroupBy(o => o.Name).ToDictionary(g => g.Key, g => g.First());
         InitializeComponent();
+        if (!string.IsNullOrEmpty(vm.SourceUrl))
+        {
+            SourcePanel.Visibility = Visibility.Visible;
+            SourceUrlBox.Text = vm.SourceUrl;
+            ImportNoticeText.Text = "来自官方攻略；推荐装备与回合讲解请查看原文。";
+        }
         foreach (var phase in Enum.GetValues<LineupPhase>())
         {
             var button = new Button { Style = (Style)FindResource("PhaseSegment"), DataContext = phase };
@@ -48,6 +54,8 @@ public partial class LineupEditorWindow : Window
         _editingStrategies = true;
         RefreshEditor();
     }
+
+    public void ShowImportNotice(string notice) => ImportNoticeText.Text = notice;
 
     private void RefreshEditor()
     {
@@ -254,21 +262,32 @@ public partial class LineupEditorWindow : Window
         header.Children.Add(star);
 
         var info = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        var nameRow = new StackPanel { Orientation = Orientation.Horizontal };
+        var nameRow = new WrapPanel();
         var name = new TextBlock { Text = slot.OperatorName, FontSize = 12, FontWeight = FontWeights.Bold, TextTrimming = TextTrimming.CharacterEllipsis };
         name.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
-        nameRow.Children.Add(name);
+        info.Children.Add(name);
+        nameRow.Margin = new Thickness(0, 2, 0, 0);
         if (op is not null && op.Tier is > 0 and < 7)
         {
             var tier = new Border { Padding = new Thickness(4, 0, 4, 0), Margin = new Thickness(5, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             tier.SetResourceReference(Border.BackgroundProperty, "SectionBackgroundBrush");
             tier.SetResourceReference(Border.CornerRadiusProperty, "DotCornerRadius");
-            var tierText = new TextBlock { Text = Roman[op.Tier], FontSize = 10, FontWeight = FontWeights.Bold };
+            var tierText = new TextBlock { Text = op.IsCustom ? "自选" : Roman[op.Tier], FontSize = 10, FontWeight = FontWeights.Bold };
             tierText.SetResourceReference(TextBlock.FontFamilyProperty, "NumberFontFamily");
             tierText.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
             tier.Child = tierText;
             nameRow.Children.Add(tier);
         }
+        var elite = new CheckBox
+        {
+            Content = "精锐", IsChecked = slot.IsElite, FontSize = 10,
+            Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
+            ToolTip = "追踪目标：勾选后，站位中达到精锐才停止追踪；未勾选则获取后停止追踪"
+        };
+        System.Windows.Automation.AutomationProperties.SetName(elite, $"{slot.OperatorName}精锐目标");
+        elite.Checked += (_, _) => { _vm.SetSlotElite(slotIndex, true); RefreshEditor(); };
+        elite.Unchecked += (_, _) => { _vm.SetSlotElite(slotIndex, false); RefreshEditor(); };
+        nameRow.Children.Add(elite);
         info.Children.Add(nameRow);
         var covenants = op is null ? "" : string.Join(" · ", op.CoreCovenants.Concat(op.AdditionalCovenants).Distinct());
         var cov = new TextBlock { Text = covenants, FontSize = 10, Margin = new Thickness(0, 2, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = covenants };

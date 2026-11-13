@@ -35,6 +35,7 @@ public partial class App : Application
     private OcrScannerService? _ocrScanner;
     private BanScreenAnalyzer? _banScreenAnalyzer;
     private SidePanelWindow? _sidePanel;
+    private AssistantTray? _assistantTray;
     private OverlayWindow? _overlay;
     private SettingsManager? _settingsManager;
     private UpdateStartupNotification? _updateStartup;
@@ -170,6 +171,8 @@ public partial class App : Application
         var appearance = await _settingsManager.LoadSidebarAppearanceAsync();
         ThemeManager.Apply(appearance.Theme, appearance.IsNight(appearance.Theme));
         var savedGameTheme = await _settingsManager.LoadGameShopThemeAsync();
+        var automaticGameTheme = await _settingsManager.LoadAutomaticGameThemeAsync();
+        if (savedGameTheme is null && automaticGameTheme) savedGameTheme = Core.Models.GameShopTheme.Terminal;
         if (savedGameTheme is null)
         {
             var themeWindow = new ModeThemeWindow();
@@ -197,6 +200,10 @@ public partial class App : Application
         // Load data
         AppLogger.Info("App", "Loading operators...");
         var operators = await dataStore.LoadOperatorsAsync();
+        var customOperators = await dataStore.LoadCustomOperatorsAsync();
+        var selectedCustom = (await _settingsManager.LoadCustomOperatorSelectionAsync()).ToHashSet(StringComparer.Ordinal);
+        foreach (var op in customOperators) op.IsSelectedCustom = selectedCustom.Contains(op.Name);
+        operators.AddRange(customOperators);
         AppLogger.Info("App", $"Loaded {operators.Count} operators");
 
         var (equipment, manualJobChangeEquipments) = await dataStore.LoadEquipmentAsync();
@@ -210,8 +217,8 @@ public partial class App : Application
             + $"{jobChangeEquipmentToCovenant.Count} job-change equipment mappings");
 
         var covenantCalculator = new CovenantCalculator(operators, covenantInfos, jobChangeEquipmentToCovenant);
-        var trackingEntries = await _settingsManager.LoadTrackingEntriesAsync(covenantCalculator.EquipmentRules);
-        AppLogger.Info("App", $"Loaded {trackingEntries.Count} tracking entries");
+        var trackingState = await _settingsManager.LoadTrackingStateAsync(covenantCalculator.EquipmentRules);
+        AppLogger.Info("App", $"Loaded {trackingState.Entries.Count} tracking entries");
         var lineupStore = new LineupStore(Path.Combine(settingsDir, "lineups"), covenantCalculator.EquipmentRules);
         var lineups = await lineupStore.LoadAllAsync();
         AppLogger.Info("App", $"Loaded {lineups.Count} saved lineups");
@@ -226,7 +233,7 @@ public partial class App : Application
         var banVm   = new BanViewModel();
         var enemyVm = new EnemyViewModel();
 
-        var operatorVm = new OperatorBrowseViewModel();
+        var operatorVm = new OperatorBrowseViewModel { SelectedOperatorSource = OperatorSourceFilter.Default };
         operatorVm.LoadOperators(operators.Where(o => o.RequiredStrategyId.Length == 0).ToList());
         operatorVm.SetBanChecker(banVm.IsBanned);
         operatorVm.SetCovenantBanChecker(banVm.IsCovenantBanned);
@@ -244,7 +251,7 @@ public partial class App : Application
         {
             TrackMultipleLineups = await _settingsManager.LoadTrackMultipleLineupsAsync()
         };
-        trackingVm.LoadEntries(trackingEntries);
+        trackingVm.LoadState(trackingState);
 
         var gameStateVm = new GameStateViewModel();
 
@@ -294,6 +301,8 @@ public partial class App : Application
         {
             TerminalReader = new TerminalLevelReader(ocrEngine),
             ThemeProvider = () => shopReader.Theme,
+            ThemeDetector = new GameShopThemeDetector(Path.Combine(dataDir, "shop_theme_refs.json")),
+            AutomaticGameTheme = automaticGameTheme,
             BoardRecognizer = boardData is null ? null : new BoardRecognizer(boardData),
         };
 
@@ -309,6 +318,9 @@ public partial class App : Application
             operators, equipment, strategies, _settingsManager, gameTheme, sidePanelPosition,
             new LineupPlanner(operators, covenantInfos), covenantInfos);
         sidePanel.GameThemeChanged += theme => shopReader.Theme = theme;
+        sidePanel.InitAutomaticGameTheme(automaticGameTheme);
+        sidePanel.AutomaticGameThemeChanged += automatic => _ocrScanner.AutomaticGameTheme = automatic;
+        _ocrScanner.GameThemeDetected += theme => Dispatcher.Invoke(() => sidePanel.ApplyDetectedGameTheme(theme));
         var overlay = _overlay = new OverlayWindow()
         {
             FindGameWindow = () => captureService.Connection.FindGameWindow(),
@@ -317,22 +329,30 @@ public partial class App : Application
 #endif
         };
 
-        async Task<byte[]?> CaptureInformationScreenAsync()
+        var informationScroll = new MaaScrollService();
+        async Task<byte[]?> CaptureInformationScreenAsync(bool scrollDown)
         {
-            if (captureService.Connection.IsAdb)
+            var connection = captureService.Connection;
+            if (connection.IsAdb)
+            {
+                if (scrollDown)
+                {
+                    if (!await Task.Run(connection.ScrollInformationPanelDown)) return null;
+                    await Task.Delay(250);
+                }
+                if (!ReferenceEquals(connection, captureService.Connection)) return null;
                 return await Task.Run(captureService.CaptureScreen);
+            }
             var visibility = await Dispatcher.InvokeAsync(() =>
             {
                 var game = captureService.Connection.FindGameWindow();
-                var foreground = Core.Interop.User32.GetForegroundWindow();
-                if (game == IntPtr.Zero || foreground != game
-                    && foreground != new System.Windows.Interop.WindowInteropHelper(sidePanel).Handle)
+                if (game == IntPtr.Zero)
                 {
-                    AppLogger.Warn("ScreenCapture", $"Manual capture rejected: game=0x{game.ToInt64():X}, foreground=0x{foreground.ToInt64():X}, panel=0x{new System.Windows.Interop.WindowInteropHelper(sidePanel).Handle.ToInt64():X}");
-                    return (Allowed: false, Panel: false, Overlay: false);
+                    AppLogger.Warn("ScreenCapture", "Manual capture rejected: game window not found");
+                    return (Allowed: false, Panel: false, Overlay: false, Game: IntPtr.Zero);
                 }
-                var before = (Allowed: true, Panel: sidePanel.IsVisible, Overlay: overlay.IsVisible);
-                sidePanel.Hide();
+                var before = (Allowed: true, Panel: !sidePanel.IsAssistantHidden && sidePanel.IsVisible, Overlay: overlay.IsVisible, Game: game);
+                if (!sidePanel.IsAssistantHidden) sidePanel.Hide();
                 overlay.Hide();
                 Core.Interop.User32.SetForegroundWindow(game);
                 return before;
@@ -343,29 +363,38 @@ public partial class App : Application
                 // CopyFromScreen sees desktop pixels, including our attached panel.
                 // Give the compositor time to display the game after hiding it.
                 await Task.Delay(150);
+                if (scrollDown)
+                {
+                    if (!ReferenceEquals(connection, captureService.Connection)) return null;
+                    if (!await Task.Run(() => informationScroll.TryScrollAtWindowCenter(visibility.Game, -120))) return null;
+                }
+                if (!ReferenceEquals(connection, captureService.Connection)) return null;
                 return await Task.Run(captureService.CaptureScreen);
             }
             finally
             {
                 await Dispatcher.InvokeAsync(() =>
                 {
-                    if (visibility.Panel)
+                    if (visibility.Panel && !sidePanel.IsAssistantHidden)
                     {
                         bool showActivated = sidePanel.ShowActivated;
                         sidePanel.ShowActivated = false;
                         sidePanel.Show();
                         sidePanel.ShowActivated = showActivated;
                     }
-                    if (visibility.Overlay && _windowTracker.IsGameFound && !_windowTracker.IsGameMinimized)
+                    if (visibility.Overlay && !sidePanel.IsAssistantHidden && _windowTracker.IsGameFound && !_windowTracker.IsGameMinimized)
                         overlay.Show();
                 });
             }
         }
 
         _banScreenAnalyzer = new BanScreenAnalyzer(
-            CaptureInformationScreenAsync, ocrEngine, garrisonMode.OcrStrategy,
+            () => CaptureInformationScreenAsync(false), ocrEngine, garrisonMode.OcrStrategy,
             enemyRecognizer, operators,
             coreCovenantNames, additionalCovenantNames);
+        _banScreenAnalyzer.ScrollInformationPanelAsync = () => CaptureInformationScreenAsync(true);
+        _banScreenAnalyzer.ScrollRequired += message => Dispatcher.BeginInvoke(() =>
+            ConfirmDialog.Tell(sidePanel, "请下拉盟约面板", message));
 
         sidePanel.GameConnectionRequested += () =>
         {
@@ -398,7 +427,7 @@ public partial class App : Application
             var foreground = Core.Interop.User32.GetForegroundWindow();
             var panelHandle = new System.Windows.Interop.WindowInteropHelper(sidePanel).Handle;
             var viewport = _windowTracker.CurrentViewport;
-            if (viewport is null || _windowTracker.IsGameMinimized
+            if (sidePanel.IsAssistantHidden || viewport is null || _windowTracker.IsGameMinimized
                 || foreground != _windowTracker.CurrentGameWindowHandle && foreground != panelHandle)
             {
                 overlay.Hide();
@@ -443,7 +472,7 @@ public partial class App : Application
         {
             Dispatcher.Invoke(() =>
             {
-                _sidePanel.SetGameMinimized(minimized);
+                if (!_sidePanel.IsAssistantHidden) _sidePanel.SetGameMinimized(minimized);
                 if (minimized)
                 {
                     _overlay.Hide();
@@ -526,7 +555,7 @@ public partial class App : Application
             _ocrScanner.SetBanScreenDetectionPaused(true);
             try
             {
-                var shot = await CaptureInformationScreenAsync();
+                var shot = await CaptureInformationScreenAsync(false);
                 if (shot is null)
                 {
                     enemyVm.RecognitionFailed("未获取到可用画面，请将游戏置前并打开本局信息页后重试。");
@@ -591,6 +620,7 @@ public partial class App : Application
             Dispatcher.Invoke(() =>
             {
                 banVm.SetCovenantBans(result.CoreCovenants.Concat(result.AdditionalCovenants).Where(c => c.IsBanned).Select(c => c.Name));
+                lineupVm.SelectedAvailabilityFilter = AvailabilityFilter.Available;
                 operatorVm.SetAvailableCovenants(result.CoreCovenants.Concat(result.AdditionalCovenants)
                     .Where(c => !c.IsBanned).Select(c => c.Name));
                 if (result.EnemyFaction is null)
@@ -611,7 +641,17 @@ public partial class App : Application
             Dispatcher.Invoke(() => _overlay?.HideBanTimedMessageOverlay());
         };
 
-        // Automatic entry and the manual button use the same validated recording flow.
+        _banScreenAnalyzer.PrepareNewRunAsync = async bansChanged =>
+        {
+            if (!_ocrScanner.TryStartNewRun(bansChanged)) return;
+            _ocrScanner.ResetTerminalLevel();
+            await Dispatcher.InvokeAsync(deploy.StartNewRunAsync).Task.Unwrap();
+            await _settingsManager.SaveTerminalLevelAsync(0);
+            AppLogger.Info("Run", bansChanged ? "Changed Ban set confirmed; progress reset for the new run"
+                : "Opening confirmed; progress reset for the new run");
+        };
+
+        // Both entry points classify the same captured page before deciding whether to reset progress.
         async Task RecordInformationAsync()
         {
             if (!_informationScanGate.Wait(0)) return;
@@ -619,19 +659,17 @@ public partial class App : Application
             {
                 await _banScreenAnalyzer.RunAnalysisAsync();
             }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                AppLogger.Warn("Run", $"Failed to save run state: {ex.Message}");
+                Dispatcher.Invoke(() => sidePanel.ShowToast($"本局状态保存失败：{ex.Message}"));
+            }
             finally
             {
                 _informationScanGate.Release();
             }
         }
-        _ocrScanner.BanScreenDetected += async () =>
-        {
-            // The opening info screen starts a new run: the previous run's terminal level no longer applies.
-            _ocrScanner.ResetTerminalLevel();
-            Dispatcher.Invoke(() => { trackingVm.ResetTerminalLevel(); _sidePanel.PlannerVm.CurrentTerminalLevel = 0; });
-            await _settingsManager!.SaveTerminalLevelAsync(0);
-            await RecordInformationAsync();
-        };
+        _ocrScanner.BanScreenDetected += async () => await RecordInformationAsync();
         _ocrScanner.TerminalLevelChanged += level =>
         {
             Dispatcher.Invoke(() =>
@@ -651,7 +689,6 @@ public partial class App : Application
         trackingVm.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName != nameof(TrackingViewModel.TerminalLevel)) return;
-            _sidePanel.PlannerVm.CurrentTerminalLevel = trackingVm.TerminalLevel;
             RefreshOverlayTracking(trackingVm);
         };
         _sidePanel.ManualScanRequested += async () => await RecordInformationAsync();
@@ -663,29 +700,44 @@ public partial class App : Application
         };
 
 
-        // Auto-save tracking changes and refresh overlay markers immediately
+        // Persist entries and their lineup associations in one atomic snapshot.
+        async Task SaveTrackingAsync()
+        {
+            try { await _settingsManager.SaveTrackingStateAsync(trackingVm.CaptureState()); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                AppLogger.Warn("Tracking", $"Failed to save tracking: {ex.Message}");
+                sidePanel.ShowToast($"追踪保存失败：{ex.Message}");
+            }
+        }
         trackingVm.TrackedOperators.CollectionChanged += async (_, _) =>
         {
             RefreshOverlayTracking(trackingVm);
-            try { await _settingsManager.SaveTrackingEntriesAsync(trackingVm.AllEntries.ToList()); }
-            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Failed to save tracking: {ex.Message}"); }
+            await SaveTrackingAsync();
         };
         trackingVm.TrackedEquipment.CollectionChanged += async (_, _) =>
         {
             RefreshOverlayTracking(trackingVm);
-            try { await _settingsManager.SaveTrackingEntriesAsync(trackingVm.AllEntries.ToList()); }
-            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Failed to save tracking: {ex.Message}"); }
+            await SaveTrackingAsync();
         };
+        trackingVm.SourcesChanged += async () => await SaveTrackingAsync();
 
         // Show windows and start services
         MainWindow = _sidePanel;
         _sidePanel.Show();
         _overlay.Show();
+        _assistantTray = new AssistantTray(_sidePanel, _overlay);
+        _assistantTray.VisibilityChanged += () =>
+        {
+            if (!sidePanel.IsAssistantHidden) sidePanel.SetGameMinimized(_windowTracker.IsGameMinimized);
+            UpdateOverlayPosition(refreshShopItems: true);
+        };
+        await _sidePanel.InitAssistantHotkeyAsync();
         ShutdownMode = ShutdownMode.OnLastWindowClose;
         _windowTracker.Start();
         _ocrScanner.Start();
         AppLogger.Info("App", "Startup complete");
-        AppLogger.SetGamePresenceCheck(() => _windowTracker.IsGameFound);
+        AppLogger.SetGamePresenceCheck(() => captureService.Connection.IsAdb || _windowTracker.IsGameFound);
 
         // Start background update check
         _ = _sidePanel.StartUpdateCheckAsync();
@@ -705,6 +757,8 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         AppLogger.Info("App", "Shutting down");
+        _assistantTray?.Dispose();
+        _sidePanel?.ReleaseAssistantHotkey();
         _ocrScanner?.Dispose();
         _windowTracker?.Dispose();
         _connectionStatusTimer?.Stop();

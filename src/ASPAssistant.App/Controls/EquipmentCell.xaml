@@ -43,8 +43,12 @@
                 <TextBlock x:Name="SubText" FontSize="11" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"
                            Foreground="{DynamicResource TextSecondaryBrush}" />
             </StackPanel>
-            <Button x:Name="TrackButton" Grid.Column="3" Width="22" Height="22" Margin="0,0,3,0" VerticalAlignment="Center"
-                    Tag="{StaticResource IconStar}" Style="{StaticResource RowIconButton}" Click="OnTrackClick" />
+            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button x:Name="AcquireButton" Content="获取" Visibility="Collapsed" Margin="0,0,3,0" Padding="6,3" FontSize="11"
+                        Style="{StaticResource SmallActionButton}" Click="OnAcquireClick" />
+                <Button x:Name="TrackButton" Width="22" Height="22" Margin="0,0,3,0" VerticalAlignment="Center"
+                        Tag="{StaticResource IconStar}" Style="{StaticResource RowIconButton}" Click="OnTrackClick" />
+            </StackPanel>
         </Grid>
     </Border>
 </UserControl>
