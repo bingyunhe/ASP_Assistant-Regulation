@@ -95,7 +95,7 @@ internal static class ClearAndLineupSourceViewTests
                     ThemeManager.Apply(theme, night);
                     inputModel.Text = "测试输入";
                     Pump();
-                    var button = ClearButton(input);
+                    var button = WaitForClearButtonVisibility(input, Visibility.Visible);
                     button.Visibility.Should().Be(Visibility.Visible);
                     button.CommandTarget.Should().BeSameAs(input);
                     button.IsEnabled.Should().BeTrue();
@@ -105,14 +105,14 @@ internal static class ClearAndLineupSourceViewTests
                     input.Text.Should().BeEmpty();
                     inputModel.Text.Should().BeEmpty("clearing updates even a LostFocus binding immediately");
                     BindingOperations.IsDataBound(input, TextBox.TextProperty).Should().BeTrue();
-                    Pump();
+                    button = WaitForClearButtonVisibility(input, Visibility.Collapsed);
                     button.Visibility.Should().Be(Visibility.Collapsed);
                     inputModel.Text = "再次输入";
                     Pump();
                     input.Text.Should().Be("再次输入");
                     Save(input, $"{theme}-{night}-text-clear");
                     input.IsReadOnly = true;
-                    Pump();
+                    button = WaitForClearButtonVisibility(input, Visibility.Collapsed);
                     button.Visibility.Should().Be(Visibility.Collapsed);
                     input.IsReadOnly = false;
                 }
@@ -297,6 +297,20 @@ internal static class ClearAndLineupSourceViewTests
         input.ApplyTemplate();
         return (Button)input.Template.FindName("ClearTextButton", input);
     }
+    private static Button WaitForClearButtonVisibility(TextBox input, Visibility expected)
+    {
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        while (watch.Elapsed < TimeSpan.FromSeconds(5))
+        {
+            input.UpdateLayout();
+            Pump();
+            var button = ClearButton(input);
+            if (button.Visibility == expected) return button;
+            Thread.Sleep(1);
+        }
+        throw new TimeoutException($"Current clear-button template did not become {expected}; text length={input.Text.Length}, read-only={input.IsReadOnly}.");
+    }
+
     private static void ClickClear(TextBox input)
     {
         var command = (RoutedCommand)ClearButton(input).Command;
