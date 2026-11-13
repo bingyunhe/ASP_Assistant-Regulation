@@ -27,70 +27,84 @@ using FluentAssertions;
 namespace ASPAssistant.Tests.Views;
 
 [Collection("Update environment")]
-public class ThemeAndHighlightTests
+public class ThemeAndHighlightTests(WpfTestHost ui) : IClassFixture<WpfTestHost>
 {
     [Fact]
-    public void UpdateDialog_ReportsDownloadProgress()
+    public async Task UiFailure_ClosesWindowsAndRestoresTheme()
     {
-        Exception? failure = null;
-        var thread = new Thread(() =>
+        var closed = false;
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => ui.RunAsync(() =>
         {
-            // 同一 AppDomain 只能有一个 WPF Application；多个测试共用它，谁创建谁负责关闭。
-            var ownsApplication = Application.Current is null;
-            var application = Application.Current ?? new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-            try
-            {
-                foreach (var resource in new[] { "Themes/Terminal.Dark.xaml", "Styles.xaml", "Logo.xaml" })
-                    application.Resources.MergedDictionaries.Add(new ResourceDictionary
-                    {
-                        Source = new Uri($"/ASPAssistant.App;component/Resources/{resource}", UriKind.Relative)
-                    });
-
-                OperatorPickerTests.VerifySelection();
-                LineupFeatureTests.Verify();
-                UpdateAndTrayTests.Verify();
-                TrackingWorkflowViewTests.Verify();
-                TrackingWorkflowViewTests.VerifyWorkflow();
-                TrackingWorkflowViewTests.VerifyEquipmentAndGroups();
-                ClearAndLineupSourceViewTests.Verify();
-                SklandImportViewTests.Verify();
-
-                var info = new ASPAssistant.Core.Services.UpdateInfo(
-                    "v9.9.9", "9.9.9", "- 测试更新说明", "https://example.test/a.zip", "a.zip", null);
-                // 不 Show()：在测试宿主里显示窗口会拉起到前台并可能拖垮 testhost。
-                var dialog = new UpdateDialog(info);
-                dialog.ReportProgress(0.42);
-                var bar = (System.Windows.Controls.ProgressBar)dialog.FindName("DialogProgress");
-                var percent = (TextBlock)dialog.FindName("ProgressPercentText");
-                var hint = (TextBlock)dialog.FindName("DownloadHintText");
-                bar.Value.Should().Be(42);
-                percent.Text.Should().Be("42%");
-                hint.Text.Should().StartWith("正在下载安装包");
-
-                dialog.ReportProgress(1.0);
-                bar.Value.Should().Be(100);
-                percent.Text.Should().Be("100%");
-                hint.Text.Should().Contain("立即重启");
-                dialog.ReportFailure("更新源返回 HTTP 503");
-                hint.Text.Should().Contain("下载失败").And.Contain("503").And.Contain("重试");
-                bar.Visibility.Should().Be(Visibility.Collapsed);
-                percent.Visibility.Should().Be(Visibility.Collapsed);
-                dialog.ReportProgress(0);
-                bar.Visibility.Should().Be(Visibility.Visible);
-                percent.Visibility.Should().Be(Visibility.Visible);
-                bar.Value.Should().Be(0);
-                percent.Text.Should().Be("0%");
-                hint.Text.Should().StartWith("正在下载安装包");
-                dialog.Close();
-            }
-            catch (Exception ex) { failure = ex; }
-            finally { if (ownsApplication) application.Shutdown(); }
-        }) { IsBackground = true };
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-        thread.Join(TimeSpan.FromSeconds(60)).Should().BeTrue("WPF dialog test should finish");
-        if (failure is not null) ExceptionDispatchInfo.Capture(failure).Throw();
+            var window = new Window { ShowActivated = false, ShowInTaskbar = false, Opacity = 0 };
+            window.Closed += (_, _) => closed = true;
+            ThemeManager.Apply(GameShopTheme.Closure, false);
+            throw new InvalidOperationException("simulated UI assertion failure");
+        }, "failure isolation"));
+        failure.Message.Should().Be("simulated UI assertion failure");
+        closed.Should().BeTrue();
+        await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            Application.Current.Windows.Count.Should().Be(0);
+            ThemeManager.Theme.Should().Be(GameShopTheme.Terminal);
+            ThemeManager.IsNight.Should().BeTrue();
+        });
     }
+
+    [Fact]
+    public Task OperatorPicker_PreservesSelectionWhileScrolling() => ui.RunAsync(OperatorPickerTests.VerifySelection, nameof(OperatorPicker_PreservesSelectionWhileScrolling));
+
+    [Fact]
+    public Task LineupEditor_FiltersAndEditsLineups() => ui.RunAsync(LineupFeatureTests.Verify, nameof(LineupEditor_FiltersAndEditsLineups));
+
+    [Fact]
+    public Task UpdateSettings_TrayAndHotkeys() => ui.RunAsync(UpdateAndTrayTests.Verify, nameof(UpdateSettings_TrayAndHotkeys));
+
+    [Fact]
+    public Task Tracking_RendersAcrossThemesAndWidths() => ui.RunAsync(TrackingWorkflowViewTests.Verify, nameof(Tracking_RendersAcrossThemesAndWidths));
+
+    [Fact]
+    public Task Tracking_WorkflowUpdatesTargets() => ui.RunAsync(TrackingWorkflowViewTests.VerifyWorkflow, nameof(Tracking_WorkflowUpdatesTargets));
+
+    [Fact]
+    public Task Tracking_EquipmentAndGroups() => ui.RunAsync(TrackingWorkflowViewTests.VerifyEquipmentAndGroups, nameof(Tracking_EquipmentAndGroups));
+
+    [Fact]
+    public Task ClearInputs_PreserveLineupSources() => ui.RunAsync(ClearAndLineupSourceViewTests.Verify, nameof(ClearInputs_PreserveLineupSources));
+
+    [Fact]
+    public Task SklandImport_ReviewsAndSavesStages() => ui.RunAsync(SklandImportViewTests.Verify, nameof(SklandImport_ReviewsAndSavesStages));
+
+    [Fact]
+    public Task UpdateDialog_ReportsDownloadProgress() => ui.RunAsync(() =>
+    {
+        var info = new ASPAssistant.Core.Services.UpdateInfo(
+            "v9.9.9", "9.9.9", "- 测试更新说明", "https://example.test/a.zip", "a.zip", null);
+        // 不 Show()：在测试宿主里显示窗口会拉起到前台并可能拖垮 testhost。
+        var dialog = new UpdateDialog(info);
+        dialog.ReportProgress(0.42);
+        var bar = (System.Windows.Controls.ProgressBar)dialog.FindName("DialogProgress");
+        var percent = (TextBlock)dialog.FindName("ProgressPercentText");
+        var hint = (TextBlock)dialog.FindName("DownloadHintText");
+        bar.Value.Should().Be(42);
+        percent.Text.Should().Be("42%");
+        hint.Text.Should().StartWith("正在下载安装包");
+
+        dialog.ReportProgress(1.0);
+        bar.Value.Should().Be(100);
+        percent.Text.Should().Be("100%");
+        hint.Text.Should().Contain("立即重启");
+        dialog.ReportFailure("更新源返回 HTTP 503");
+        hint.Text.Should().Contain("下载失败").And.Contain("503").And.Contain("重试");
+        bar.Visibility.Should().Be(Visibility.Collapsed);
+        percent.Visibility.Should().Be(Visibility.Collapsed);
+        dialog.ReportProgress(0);
+        bar.Visibility.Should().Be(Visibility.Visible);
+        percent.Visibility.Should().Be(Visibility.Visible);
+        bar.Value.Should().Be(0);
+        percent.Text.Should().Be("0%");
+        hint.Text.Should().StartWith("正在下载安装包");
+        dialog.Close();
+    }, nameof(UpdateDialog_ReportsDownloadProgress));
 
     // Written against the pre-redesign UI (old dark/light palette colors, the 全部-chip filter lists, card layouts).
     // The redesign replaced all of those; to be rewritten once the new layout settles.
