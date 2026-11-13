@@ -3,6 +3,7 @@ namespace ASPAssistant.Core.ViewModels;
 public class BanViewModel
 {
     private readonly HashSet<string> _bannedNames = [];
+    private readonly HashSet<string> _automaticNames = [];
     private readonly HashSet<string> _bannedCovenants = [];
 
     public IReadOnlySet<string> BannedNames => _bannedNames;
@@ -29,14 +30,19 @@ public class BanViewModel
     public void SetBans(IEnumerable<string> names)
     {
         _bannedNames.Clear();
+        _automaticNames.Clear();
         foreach (var name in names)
             if (!string.IsNullOrWhiteSpace(name))
+            {
                 _bannedNames.Add(name);
+                _automaticNames.Add(name);
+            }
         BansChanged?.Invoke();
     }
 
     public void ToggleBan(string name)
     {
+        _automaticNames.Remove(name);
         if (!_bannedNames.Remove(name))
             _bannedNames.Add(name);
         BansChanged?.Invoke();
@@ -44,8 +50,17 @@ public class BanViewModel
 
     public void ClearBans()
     {
-        if (_bannedNames.Count == 0) return;
         _bannedNames.Clear();
+        _automaticNames.Clear();
+        _bannedCovenants.Clear();
+        BansChanged?.Invoke();
+    }
+
+    public void ClearRunBans()
+    {
+        _bannedNames.ExceptWith(_automaticNames);
+        _automaticNames.Clear();
+        _bannedCovenants.Clear();
         BansChanged?.Invoke();
     }
 }

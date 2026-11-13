@@ -15,10 +15,26 @@ public class OperatorVariant
 {
     [JsonPropertyName("traits")]
     public List<TraitEntry> Traits { get; set; } = [];
+
+    /// <summary>Skill of this variant (from data/operator_profiles.json; null when unknown).</summary>
+    [JsonIgnore]
+    public OperatorSkill? Skill { get; set; }
+
+    [JsonIgnore]
+    public bool HasSkill => Skill is not null;
 }
 
 public class Operator
 {
+    [JsonPropertyName("isCustom")]
+    public bool IsCustom { get; set; }
+
+    [JsonIgnore]
+    public bool IsSelectedCustom { get; set; }
+
+    [JsonIgnore]
+    public bool IsAvailableForSelection => !IsCustom || IsSelectedCustom;
+
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
 
@@ -46,4 +62,11 @@ public class Operator
 
     [JsonPropertyName("iconPath")]
     public string IconPath { get; set; } = "";
+
+    /// <summary>Class, skill and planner roles (from data/operator_profiles.json; null when unknown).</summary>
+    [JsonIgnore]
+    public OperatorProfile? Profile { get; set; }
+
+    [JsonIgnore]
+    public bool HasProfile => Profile is not null;
 }

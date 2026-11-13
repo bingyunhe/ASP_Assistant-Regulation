@@ -26,6 +26,25 @@ public class RegulationDataTests
     }
 
     [Fact]
+    public async Task Operators_LoadProfilesWithSkillsAndRoles()
+    {
+        // Strategy-only pieces such as “暴躁铁皮” have no recruitable profile or skill.
+        var operators = (await _store.LoadOperatorsAsync()).Where(o => o.RequiredStrategyId.Length == 0).ToList();
+
+        operators.Should().OnlyContain(o => o.Profile != null && o.Normal.Skill != null && o.Elite.Skill != null);
+        var by = operators.ToDictionary(o => o.Name);
+        by["折桠"].Profile!.IsTank.Should().BeTrue();
+        by["折桠"].Profile!.Profession.Should().Be("重装");
+        by["乌啾"].Profile!.IsHealer.Should().BeTrue();
+        by["空弦"].Profile!.Stack!.Kind.Should().Be("adjacent");
+        by["折光"].Profile!.Stack!.Covenants.Should().Equal("莱塔尼亚");
+        by["维伊"].Profile!.Consumes.Should().Contain("乌萨斯");
+        by["折桠"].Elite.Skill!.Description.Should().Contain("攻击力+120%");
+        operators.Count(o => o.Profile!.IsTank).Should().BeGreaterThan(10);
+        operators.Count(o => o.Profile!.IsHealer).Should().BeGreaterThan(10);
+    }
+
+    [Fact]
     public async Task Covenants_LoadHandMaintainedEffects()
     {
         var (covenants, _) = await _store.LoadCovenantsAsync();

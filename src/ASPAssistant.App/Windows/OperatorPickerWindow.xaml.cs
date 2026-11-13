@@ -1,3 +1,4 @@
+// Modified for ASP Assistant Arknights on 2026-11-12; see NOTICE.
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -12,6 +13,8 @@ public partial class OperatorPickerWindow : Window
 {
     private readonly OperatorBrowseViewModel _filters = new();
     private readonly IReadOnlySet<string> _strategies;
+    private Operator? _pressedOperator;
+    private Point _pressPosition;
 
     public string? Result { get; private set; }
 
@@ -24,59 +27,38 @@ public partial class OperatorPickerWindow : Window
         { Converter = new StrategyAvailabilityConverter(), ConverterParameter = strategies }));
         var disabled = new Trigger { Property = IsEnabledProperty, Value = false };
         disabled.Setters.Add(new Setter(ToolTipProperty, "必须在策略中添加森蚺策略"));
+        disabled.Setters.Add(new Setter(OpacityProperty, 0.45));
         disabled.Setters.Add(new Setter(ToolTipService.ShowOnDisabledProperty, true));
         disabled.Setters.Add(new Setter(ToolTipService.InitialShowDelayProperty, 0));
         style.Triggers.Add(disabled);
         OperatorsList.ItemContainerStyle = style;
         _filters.LoadOperators(operators.OrderBy(op => op.Tier).ThenBy(op => op.Name, StringComparer.CurrentCulture).ToList());
         DataContext = _filters;
-        TierFilters.ItemsSource = _filters.AvailableTiers.OfType<int>().ToList();
-        CoreFilters.ItemsSource = _filters.AvailableCoreCovenants.Where(name => !string.IsNullOrEmpty(name)).ToList();
-        OtherFilters.ItemsSource = _filters.AvailableOtherCovenants.Where(name => !string.IsNullOrEmpty(name)).ToList();
-        TraitFilter.ItemsSource = new[] { "全部" }.Concat(_filters.AvailableTraitTypes.OfType<string>()).ToList();
-        TimingFilter.ItemsSource = new[] { "全部" }.Concat(_filters.AvailableTriggerTimings.OfType<string>()).ToList();
-        TraitFilter.SelectedIndex = 0;
-        TimingFilter.SelectedIndex = 0;
         OperatorsList.SelectedItem = _filters.FilteredOperators.FirstOrDefault(op => op.Name == current);
         Loaded += (_, _) => SearchBox.Focus();
     }
 
-    private void OnFiltersChanged(object sender, SelectionChangedEventArgs e)
-    {
-        var list = (ListBox)sender;
-        if (list == TierFilters)
-            _filters.SelectedTierFilters = list.SelectedItems.Cast<int>().ToList();
-        else if (list == CoreFilters)
-            _filters.SetCoreCovenantFilters(list.SelectedItems.Cast<string>());
-        else
-            _filters.SetOtherCovenantFilters(list.SelectedItems.Cast<string>());
-    }
+    private void OnResetFiltersClick(object sender, RoutedEventArgs e) => _filters.ResetFilters();
 
-    private void OnResetFiltersClick(object sender, RoutedEventArgs e)
+    private void OnOperatorMouseDown(object sender, MouseButtonEventArgs e)
     {
-        TierFilters.SelectedItems.Clear();
-        CoreFilters.SelectedItems.Clear();
-        OtherFilters.SelectedItems.Clear();
-        _filters.ResetFilters();
-        TraitFilter.SelectedIndex = 0;
-        TimingFilter.SelectedIndex = 0;
-    }
-
-    private void OnSingleFilterChanged(object sender, SelectionChangedEventArgs e)
-    {
-        var combo = (ComboBox)sender;
-        var selected = combo.SelectedIndex == 0 ? null : (string?)combo.SelectedItem;
-        if (combo == TraitFilter)
-            _filters.SelectedTraitTypeFilter = selected;
-        else
-            _filters.SelectedTriggerTimingFilter = selected;
+        _pressedOperator = null;
+        if (ItemsControl.ContainerFromElement(OperatorsList, e.OriginalSource as DependencyObject) is not ListBoxItem { IsEnabled: true } item)
+            return;
+        _pressedOperator = (Operator)item.Content;
+        _pressPosition = e.GetPosition(OperatorsList);
     }
 
     private void OnOperatorClick(object sender, MouseButtonEventArgs e)
     {
-        if (ItemsControl.ContainerFromElement(OperatorsList, e.OriginalSource as DependencyObject) is not ListBoxItem item)
+        var op = _pressedOperator;
+        _pressedOperator = null;
+        if (op is null || ItemsControl.ContainerFromElement(OperatorsList, e.OriginalSource as DependencyObject) is not ListBoxItem)
             return;
-        var op = (Operator)item.Content;
+        var movement = e.GetPosition(OperatorsList) - _pressPosition;
+        if (Math.Abs(movement.X) > SystemParameters.MinimumHorizontalDragDistance
+            || Math.Abs(movement.Y) > SystemParameters.MinimumVerticalDragDistance)
+            return;
         if (op.RequiredStrategyId.Length > 0 && !_strategies.Contains(op.RequiredStrategyId)) return;
         Result = op.Name;
         Close();

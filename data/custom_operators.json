@@ -1,0 +1,1285 @@
+{
+  "source": "https://torappu.prts.wiki/gamedata/latest/excel/",
+  "season": "act3autochess/V3_1",
+  "notice": "PRTS 原始游戏数据；自选干员无特质，技能和模组由游戏内配置决定；Ⅴ/Ⅵ阶合并为一个候选。",
+  "operators": [
+    {
+      "name": "Mechanist(卫戍协议)",
+      "sourceCharId": "char_610_acfend",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/Mechanist(卫戍协议).png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "Misery(卫戍协议)",
+      "sourceCharId": "char_615_acspec",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/Misery(卫戍协议).png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "Pith(卫戍协议)",
+      "sourceCharId": "char_612_accast",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/Pith(卫戍协议).png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "Raidian(卫戍协议)",
+      "sourceCharId": "char_614_acsupo",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/Raidian(卫戍协议).png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "Sharp(卫戍协议)",
+      "sourceCharId": "char_609_acguad",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/Sharp(卫戍协议).png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "Stormeye(卫戍协议)",
+      "sourceCharId": "char_611_acnipe",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/Stormeye(卫戍协议).png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "Touch(卫戍协议)",
+      "sourceCharId": "char_613_acmedc",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/Touch(卫戍协议).png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "丰川祥子",
+      "sourceCharId": "char_4182_oblvns",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/丰川祥子.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "予愿安洁莉娜",
+      "sourceCharId": "char_1015_aglna2",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/予愿安洁莉娜.png",
+      "coreCovenants": [
+        "叙拉古"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "令",
+      "sourceCharId": "char_2023_ling",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/令.png",
+      "coreCovenants": [
+        "炎"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "伊内丝",
+      "sourceCharId": "char_4087_ines",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/伊内丝.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "伊芙利特",
+      "sourceCharId": "char_134_ifrit",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/伊芙利特.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "信仰搅拌机",
+      "sourceCharId": "char_4194_rmixer",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/信仰搅拌机.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "假日威龙陈",
+      "sourceCharId": "char_1013_chen2",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/假日威龙陈.png",
+      "coreCovenants": [
+        "炎"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "傀影",
+      "sourceCharId": "char_250_phatom",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/傀影.png",
+      "coreCovenants": [
+        "维多利亚"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "凯尔希",
+      "sourceCharId": "char_003_kalts",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/凯尔希.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "凯尔希·思衡托",
+      "sourceCharId": "char_1052_kalts2",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/凯尔希·思衡托.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "刻俄柏",
+      "sourceCharId": "char_2013_cerber",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/刻俄柏.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "号角",
+      "sourceCharId": "char_4039_horn",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/号角.png",
+      "coreCovenants": [
+        "维多利亚"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "司霆惊蛰",
+      "sourceCharId": "char_1043_leizi2",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/司霆惊蛰.png",
+      "coreCovenants": [
+        "炎"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "国度",
+      "sourceCharId": "char_4246_dminon",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/国度.png",
+      "coreCovenants": [
+        "乌萨斯"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "圣约送葬人",
+      "sourceCharId": "char_1032_excu2",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/圣约送葬人.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "塑心",
+      "sourceCharId": "char_245_cello",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/塑心.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "多萝西",
+      "sourceCharId": "char_4048_doroth",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/多萝西.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "娜仁图亚",
+      "sourceCharId": "char_4138_narant",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/娜仁图亚.png",
+      "coreCovenants": [
+        "萨尔贡"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "娜斯提",
+      "sourceCharId": "char_4212_nasti",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/娜斯提.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "嵯峨",
+      "sourceCharId": "char_362_saga",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/嵯峨.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "左乐",
+      "sourceCharId": "char_4121_zuole",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/左乐.png",
+      "coreCovenants": [
+        "炎"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "年",
+      "sourceCharId": "char_2014_nian",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/年.png",
+      "coreCovenants": [
+        "炎"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "弑君者",
+      "sourceCharId": "char_1502_crosly",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/弑君者.png",
+      "coreCovenants": [
+        "叙拉古",
+        "乌萨斯"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "推进之王",
+      "sourceCharId": "char_112_siege",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/推进之王.png",
+      "coreCovenants": [
+        "维多利亚"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "提丰",
+      "sourceCharId": "char_2012_typhon",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/提丰.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "斩业星熊",
+      "sourceCharId": "char_1044_hsgma2",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/斩业星熊.png",
+      "coreCovenants": [
+        "炎"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "新约能天使",
+      "sourceCharId": "char_1041_angel2",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/新约能天使.png",
+      "coreCovenants": [
+        "炎"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "早露",
+      "sourceCharId": "char_197_poca",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/早露.png",
+      "coreCovenants": [
+        "乌萨斯"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "星熊",
+      "sourceCharId": "char_136_hsguma",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/星熊.png",
+      "coreCovenants": [
+        "炎"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "望",
+      "sourceCharId": "char_2027_wang",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/望.png",
+      "coreCovenants": [
+        "炎"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "林",
+      "sourceCharId": "char_4080_lin",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/林.png",
+      "coreCovenants": [
+        "炎"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "止颂",
+      "sourceCharId": "char_4011_lessng",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/止颂.png",
+      "coreCovenants": [
+        "莱塔尼亚"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "死芒",
+      "sourceCharId": "char_450_necras",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/死芒.png",
+      "coreCovenants": [
+        "维多利亚"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "泥岩",
+      "sourceCharId": "char_311_mudrok",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/泥岩.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "澄闪",
+      "sourceCharId": "char_377_gdglow",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/澄闪.png",
+      "coreCovenants": [
+        "维多利亚"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "灰烬",
+      "sourceCharId": "char_456_ash",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/灰烬.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "焰影苇草",
+      "sourceCharId": "char_1020_reed2",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/焰影苇草.png",
+      "coreCovenants": [
+        "维多利亚"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "焰狐龙梓兰",
+      "sourceCharId": "char_1048_orchd2",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/焰狐龙梓兰.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "煌",
+      "sourceCharId": "char_017_huang",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/煌.png",
+      "coreCovenants": [
+        "炎",
+        "维多利亚"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "玛露西尔",
+      "sourceCharId": "char_4141_marcil",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/玛露西尔.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "珊比",
+      "sourceCharId": "char_4235_thumpy",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/珊比.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "琳琅诗怀雅",
+      "sourceCharId": "char_1033_swire2",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/琳琅诗怀雅.png",
+      "coreCovenants": [
+        "炎"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "琴柳",
+      "sourceCharId": "char_479_sleach",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/琴柳.png",
+      "coreCovenants": [
+        "维多利亚"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "电弧",
+      "sourceCharId": "char_4195_radian",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/电弧.png",
+      "coreCovenants": [
+        "乌萨斯"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "百炼嘉维尔",
+      "sourceCharId": "char_1026_gvial2",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/百炼嘉维尔.png",
+      "coreCovenants": [
+        "萨尔贡"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "结城理",
+      "sourceCharId": "char_4217_makoto",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/结城理.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "维什戴尔",
+      "sourceCharId": "char_1035_wisdel",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/维什戴尔.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "缄默德克萨斯",
+      "sourceCharId": "char_1028_texas2",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/缄默德克萨斯.png",
+      "coreCovenants": [
+        "炎",
+        "叙拉古"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "缇缇",
+      "sourceCharId": "char_4056_titi",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/缇缇.png",
+      "coreCovenants": [
+        "萨尔贡"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "能天使",
+      "sourceCharId": "char_103_angel",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/能天使.png",
+      "coreCovenants": [
+        "炎"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "艾拉",
+      "sourceCharId": "char_4123_ela",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/艾拉.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "莫斯提马",
+      "sourceCharId": "char_213_mostma",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/莫斯提马.png",
+      "coreCovenants": [
+        "炎"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "莱伊",
+      "sourceCharId": "char_4117_ray",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/莱伊.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "菲亚梅塔",
+      "sourceCharId": "char_300_phenxi",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/菲亚梅塔.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "谬因",
+      "sourceCharId": "char_4229_aphris",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/谬因.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "赤刃明霄陈",
+      "sourceCharId": "char_1050_chen3",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/赤刃明霄陈.png",
+      "coreCovenants": [
+        "炎"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "郁金香(卫戍协议)",
+      "sourceCharId": "char_608_acpion",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/郁金香(卫戍协议).png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "重岳",
+      "sourceCharId": "char_2024_chyue",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/重岳.png",
+      "coreCovenants": [
+        "炎"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "银灰",
+      "sourceCharId": "char_172_svrash",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/银灰.png",
+      "coreCovenants": [
+        "谢拉格"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "闪灵",
+      "sourceCharId": "char_147_shining",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/闪灵.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "阿",
+      "sourceCharId": "char_225_haak",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/阿.png",
+      "coreCovenants": [
+        "炎"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "阿斯卡纶",
+      "sourceCharId": "char_4132_ascln",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/阿斯卡纶.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "陈",
+      "sourceCharId": "char_010_chen",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/陈.png",
+      "coreCovenants": [
+        "炎"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "领主·Sharp",
+      "sourceCharId": "char_617_sharp2",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/领主·Sharp.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "风笛",
+      "sourceCharId": "char_222_bpipe",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/风笛.png",
+      "coreCovenants": [
+        "维多利亚"
+      ],
+      "additionalCovenants": [],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "麒麟R夜刀",
+      "sourceCharId": "char_1029_yato2",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/麒麟R夜刀.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "麦哲伦",
+      "sourceCharId": "char_248_mgllan",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/麦哲伦.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    },
+    {
+      "name": "黑",
+      "sourceCharId": "char_340_shwaz",
+      "isCustom": true,
+      "tier": 5,
+      "iconPath": "icons/operators/黑.png",
+      "coreCovenants": [],
+      "additionalCovenants": [
+        "协防干员"
+      ],
+      "normal": {
+        "traits": []
+      },
+      "elite": {
+        "traits": []
+      }
+    }
+  ]
+}

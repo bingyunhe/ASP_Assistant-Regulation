@@ -1,4 +1,4 @@
-// Modified for ASP Assistant Arknights on 2026-11-10; see NOTICE.
+// Modified for ASP Assistant Arknights on 2026-11-12; see NOTICE.
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using ASPAssistant.Core.Models;
@@ -7,7 +7,8 @@ using ASPAssistant.Core.Services;
 namespace ASPAssistant.Core.ViewModels;
 
 /// <summary>
-/// 阵容编辑会话的临时 view-model：固定持有 9 个槽位，未填的槽位 OperatorName 为空。
+/// 阵容编辑会话的临时 view-model：通常持有 9 个槽位，导入候选完整保留并在保存前限制人数。
+/// 带森蚺“暴躁铁皮”策略时，每个阶段的 9 个槽位里有一个是铁皮（占 1 人口，单独显示）。
 /// 所有修改后调用 <see cref="Recalculate"/> 刷新激活盟约统计。
 /// </summary>
 public partial class LineupEditorViewModel : ObservableObject
@@ -47,11 +48,15 @@ public partial class LineupEditorViewModel : ObservableObject
                     if (slot.Equipments.Count > LineupEquipmentService.Capacity(slot))
                         return $"{slot.OperatorName}的装备超过{LineupEquipmentService.Capacity(slot)}件，请移除多余装备或启用精锐";
                 }
+            foreach (var (phase, slots) in _phaseSlots)
+                if (slots.Count(s => s.OperatorName.Length > 0) > MaxSlots)
+                    return $"{phase}超过 {MaxSlots} 人（暴躁铁皮也占 1 人口），请筛选至 {MaxSlots} 人以内再保存";
             return "";
         }
     }
 
     public string LineupId { get; }
+    public string? SourceUrl { get; }
 
     [ObservableProperty]
     private string _name = "新阵容";
@@ -81,6 +86,7 @@ public partial class LineupEditorViewModel : ObservableObject
         AllEquipment = [.. equipment];
 
         LineupId = source?.Id ?? Guid.NewGuid().ToString("N");
+        SourceUrl = source?.SourceUrl;
         if (!string.IsNullOrWhiteSpace(source?.Name))
             _name = source!.Name;
 
@@ -94,9 +100,13 @@ public partial class LineupEditorViewModel : ObservableObject
                 LineupPhase.挂件 => source.SupportSlots,
                 _ => throw new ArgumentOutOfRangeException(nameof(phase)),
             };
-            var slots = new ObservableCollection<LineupSlot>(sourceSlots.Take(MaxSlots).Select(CloneSlot));
-            while (slots.Count < MaxSlots)
+            // 暴躁铁皮 takes one of the 9 places; it is kept last and shown on its own card.
+            var list = sourceSlots.ToList();
+            var mech = list.FirstOrDefault(IsMech);
+            var slots = new ObservableCollection<LineupSlot>(list.Where(s => !IsMech(s)).Select(CloneSlot));
+            while (slots.Count < MaxSlots - (mech is null ? 0 : 1))
                 slots.Add(new LineupSlot());
+            if (mech is not null) slots.Add(CloneSlot(mech));
             _phaseSlots.Add(phase, slots);
         }
         _initialName = Name;
@@ -104,10 +114,44 @@ public partial class LineupEditorViewModel : ObservableObject
             (source?.Strategies ?? []).Select(s => new LineupStrategySlot { StrategyId = s.StrategyId, Tags = [.. s.Tags] }));
         while (StrategySlots.Count < MaxSlots)
             StrategySlots.Add(new LineupStrategySlot());
+        SyncMechSlots();
         _initialStrategies = StrategySlots.Select(s => new LineupStrategySlot { StrategyId = s.StrategyId, Tags = [.. s.Tags] }).ToList();
         _initialSlots = _phaseSlots.ToDictionary(pair => pair.Key, pair => pair.Value.Select(CloneSlot).ToList());
         _initialPhase = source is null ? LineupPhase.前期 : LineupPhase.后期;
         SelectPhase(_initialPhase);
+    }
+
+    private static bool IsMech(LineupSlot slot) => slot.OperatorName == LineupEquipmentService.MechName;
+
+    /// <summary>Index of the 暴躁铁皮 slot in <see cref="Slots"/> (−1 when there is none).</summary>
+    public int MechSlotIndex => Slots.ToList().FindIndex(IsMech);
+
+    /// <summary>Indices of the places other than 暴躁铁皮 (the grid).</summary>
+    public IReadOnlyList<int> RegularSlotIndices => Enumerable.Range(0, Slots.Count).Where(i => !IsMech(Slots[i])).ToList();
+
+    /// <summary>People of a phase, 暴躁铁皮 included (for the phase switch).</summary>
+    public int FilledCount(LineupPhase phase) => _phaseSlots[phase].Count(s => s.OperatorName.Length > 0);
+
+    /// <summary>
+    /// With the 暴躁铁皮 strategy every phase gets the mech in one of its 9 places (an empty place makes room);
+    /// without the strategy an unused mech gives its place back.
+    /// </summary>
+    private void SyncMechSlots()
+    {
+        foreach (var slots in _phaseSlots.Values)
+        {
+            var mech = slots.FirstOrDefault(IsMech);
+            if (HasMechStrategy && mech is null)
+            {
+                if (slots.LastOrDefault(s => s.OperatorName.Length == 0) is { } empty) slots.Remove(empty);
+                slots.Add(new LineupSlot { OperatorName = LineupEquipmentService.MechName });
+            }
+            else if (!HasMechStrategy && mech is not null && mech.Equipments.Count == 0)
+            {
+                slots.Remove(mech);
+                while (slots.Count < MaxSlots) slots.Add(new LineupSlot());
+            }
+        }
     }
 
     public void SelectPhase(LineupPhase phase)
@@ -124,7 +168,8 @@ public partial class LineupEditorViewModel : ObservableObject
 
         if (string.IsNullOrEmpty(operatorName))
         {
-            Slots[slotIndex] = new LineupSlot();
+            if (Slots.Count > MaxSlots) Slots.RemoveAt(slotIndex);
+            else Slots[slotIndex] = new LineupSlot();
         }
         else
         {
@@ -135,6 +180,13 @@ public partial class LineupEditorViewModel : ObservableObject
             slot.OperatorName = operatorName;
             // 触发 ItemsControl 刷新（LineupSlot 是 POCO，集合变更通知更可靠）
             Slots[slotIndex] = CloneSlot(slot);
+            if (IsMech(slot))
+            {
+                // Only one 暴躁铁皮: the unused automatic one gives its place back.
+                var other = Slots.Where((s, i) => i != slotIndex && IsMech(s) && s.Equipments.Count == 0).ToList();
+                foreach (var o in other) Slots.Remove(o);
+                while (Slots.Count < MaxSlots) Slots.Add(new LineupSlot());
+            }
         }
         Recalculate();
     }
@@ -237,9 +289,11 @@ public partial class LineupEditorViewModel : ObservableObject
 
     public void Clear()
     {
+        var keepMech = HasMechStrategy;
         Slots.Clear();
-        for (int i = 0; i < MaxSlots; i++)
+        for (int i = 0; i < MaxSlots - (keepMech ? 1 : 0); i++)
             Slots.Add(new LineupSlot());
+        if (keepMech) Slots.Add(new LineupSlot { OperatorName = LineupEquipmentService.MechName });
         Recalculate();
     }
 
@@ -250,8 +304,9 @@ public partial class LineupEditorViewModel : ObservableObject
             StrategyId = strategyId,
             Tags = strategyId.Length == 0 ? [] : [.. StrategySlots[slotIndex].Tags],
         };
+        SyncMechSlots();
         OnPropertyChanged(nameof(HasMechStrategy));
-        OnPropertyChanged(nameof(ValidationError));
+        Recalculate();
     }
 
     public void ToggleStrategyTag(int slotIndex, StrategyTag tag)
@@ -267,8 +322,9 @@ public partial class LineupEditorViewModel : ObservableObject
     {
         for (var i = 0; i < StrategySlots.Count; i++)
             StrategySlots[i] = new LineupStrategySlot();
+        SyncMechSlots();
         OnPropertyChanged(nameof(HasMechStrategy));
-        OnPropertyChanged(nameof(ValidationError));
+        Recalculate();
     }
 
     public void ToggleSlotTag(int slotIndex, LineupTag tag)
@@ -309,6 +365,7 @@ public partial class LineupEditorViewModel : ObservableObject
     public Lineup ToLineup() => new()
     {
         Id = LineupId,
+        SourceUrl = SourceUrl,
         Name = string.IsNullOrWhiteSpace(Name) ? "未命名阵容" : Name.Trim(),
         Slots = ExportPhase(LineupPhase.后期),
         EarlySlots = ExportPhase(LineupPhase.前期),
@@ -319,8 +376,9 @@ public partial class LineupEditorViewModel : ObservableObject
         UpdatedAt = DateTime.UtcNow,
     };
 
+    // An untouched 暴躁铁皮 slot (no gear) is not worth saving.
     private List<LineupSlot> ExportPhase(LineupPhase phase) => [.. _phaseSlots[phase]
-        .Where(s => !string.IsNullOrEmpty(s.OperatorName)).Select(CloneSlot)];
+        .Where(s => !string.IsNullOrEmpty(s.OperatorName) && (!IsMech(s) || s.Equipments.Count > 0 || s.Tags.Count > 0)).Select(CloneSlot)];
 
     private static LineupSlot CloneSlot(LineupSlot s) => new()
     {

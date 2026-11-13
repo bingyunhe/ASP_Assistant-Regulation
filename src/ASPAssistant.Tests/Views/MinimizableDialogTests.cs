@@ -32,7 +32,7 @@ internal static class MinimizableDialogTests
             var calculator = new CovenantCalculator(operators, [], new Dictionary<string, string>());
             foreach (var light in new[] { false, true })
             {
-                ThemeManager.Apply(light);
+                ThemeManager.Apply(ASPAssistant.Core.Models.GameShopTheme.Terminal, !light);
                 var parentBody = new TextBox { Text = "parent content" };
                 var parent = new Window
                 {
@@ -187,7 +187,7 @@ internal static class MinimizableDialogTests
         }
         finally
         {
-            ThemeManager.Apply(false);
+            ThemeManager.Apply(ASPAssistant.Core.Models.GameShopTheme.Terminal, true);
             SynchronizationContext.SetSynchronizationContext(previousContext);
         }
     }

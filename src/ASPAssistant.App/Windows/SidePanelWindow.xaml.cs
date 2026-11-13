@@ -49,6 +49,8 @@ public partial class SidePanelWindow : Window
     private RECT? _lastGameRect;
     public GameShopTheme GameTheme { get; private set; }
     public event Action<GameShopTheme>? GameThemeChanged;
+    public event Action<bool>? AutomaticGameThemeChanged;
+    public bool AutomaticGameTheme => AutomaticThemeToggle.IsChecked == true;
     private UpdateInfo? _pendingUpdate;
     private Task? _downloadTask;
     private bool _isDownloadReady;
@@ -89,8 +91,10 @@ public partial class SidePanelWindow : Window
         GameShopTheme gameTheme,
         SidePanelPositionSettings positionSettings,
         LineupPlanner? lineupPlanner = null,
-        IReadOnlyList<CovenantInfo>? covenants = null)
+        IReadOnlyList<CovenantInfo>? covenants = null,
+        SidebarAppearance? appearance = null)
     {
+        _appearance = appearance ?? new SidebarAppearance();
         OperatorBrowseVm = operatorVm;
         EquipmentBrowseVm = equipmentVm;
         TrackingVm = trackingVm;
@@ -116,9 +120,21 @@ public partial class SidePanelWindow : Window
             Width = _preferredWidthDip;
             _userHeightDip = placement.HeightDip;
         }
-        CurrentVersionText.Text = $"当前版本：v{typeof(SidePanelWindow).Assembly.GetName().Version!.ToString(3)}";
-        UiThemeSelector.SelectedIndex = ThemeManager.IsLight ? 1 : 0;
+        CurrentVersionText.Text = $"当前版本  v{typeof(SidePanelWindow).Assembly.GetName().Version!.ToString(3)}";
         GameThemeSelector.SelectedIndex = (int)gameTheme;
+        FollowModeThemeToggle.IsChecked = _appearance.FollowModeTheme;
+        UiThemeSelector.SelectedIndex = (int)_appearance.Theme;
+        UiThemeSelector.Visibility = _appearance.FollowModeTheme ? Visibility.Collapsed : Visibility.Visible;
+        SyncDayNightSelector();
+        DayNightSelector.SelectionChanged += OnDayNightChanged;
+        FollowModeThemeToggle.Checked += OnFollowModeThemeChanged;
+        FollowModeThemeToggle.Unchecked += OnFollowModeThemeChanged;
+        trackingVm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(TrackingViewModel.TerminalLevel) or nameof(TrackingViewModel.IsTerminalLevelRestored))
+                UpdateStatusChip();
+        };
+        UpdateStatusChip();
         MultiLineupTrackingToggle.IsChecked = trackingVm.TrackMultipleLineups;
         FreeSidePanelMovementToggle.IsChecked = positionSettings.FreeMovement;
         UiThemeSelector.SelectionChanged += OnUiThemeChanged;
@@ -163,12 +179,32 @@ public partial class SidePanelWindow : Window
         EnemyView.DataContext = enemyVm;
         EnemyView.RecognitionRequested += () => EnemyRecognitionRequested?.Invoke();
         LineupView.DataContext = lineupVm;
+        LineupView.SetTracking(trackingVm);
+        lineupVm.SetBanChecker(name => banVm.IsBanned(name)
+            || allOperators.Any(op => op.Name == name && CovenantBanRules.IsExcluded(op, banVm.BannedCovenants)));
         WireLineupView();
 
         OperatorView.IsTrackedCheck = trackingVm.IsTracked;
         EquipmentView.IsTrackedCheck = trackingVm.IsTracked;
 
         OperatorView.IsBannedCheck = banVm.IsBanned;
+        OperatorView.ManageCustomOperatorsRequested += async () =>
+        {
+            var dialog = new CustomOperatorSelectionWindow(allOperators.Where(op => op.IsCustom)) { Owner = this };
+            await MinimizableDialog.ShowAsync(dialog, OperatorView);
+            if (dialog.Result is null) return;
+            try { await settingsManager.SaveCustomOperatorSelectionAsync(dialog.Result); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                ShowToast($"自选干员保存失败：{ex.Message}");
+                return;
+            }
+            var names = dialog.Result.ToHashSet(StringComparer.Ordinal);
+            foreach (var op in allOperators.Where(op => op.IsCustom)) op.IsSelectedCustom = names.Contains(op.Name);
+            operatorVm.LoadOperators(allOperators.Where(op => op.RequiredStrategyId.Length == 0).ToList());
+            PlannerVm.NotifyOperatorSelectionChanged();
+            ShowToast($"已保存 {names.Count} 名自选干员");
+        };
 
         OperatorView.TrackingRequested += (name, type) => trackingVm.AddTracking(name, type);
         OperatorView.UntrackingRequested += name => trackingVm.RemoveTracking(name);
@@ -176,12 +212,16 @@ public partial class SidePanelWindow : Window
         EquipmentView.UntrackingRequested += name => trackingVm.RemoveTracking(name);
         TrackingView.RemoveTrackingRequested += name => trackingVm.RemoveTracking(name);
         TrackingView.ToggleAcquiredRequested += name => trackingVm.ToggleAcquired(name);
-        TrackingView.ClearAllTrackingRequested += () => trackingVm.ClearAllTracking();
+        TrackingView.ClearAllTrackingRequested += () =>
+        {
+            if (ConfirmDialog.Ask(this, "清空追踪", "清空所有干员和装备追踪目标？已拥有、精锐和数量记录会保留。", "清空追踪", danger: true))
+                trackingVm.ClearAllTracking();
+        };
 
         OperatorView.ClearBansRequested += () => banVm.ClearBans();
         OperatorView.ClearRunRequested += () =>
         {
-            banVm.SetCovenantBans([]);
+            banVm.ClearRunBans();
             operatorVm.ClearCovenantHighlights();
             PlannerVm.OnlyCurrentRun = false;
         };
@@ -194,8 +234,11 @@ public partial class SidePanelWindow : Window
             {
                 OperatorView.RefreshBannedStates();
                 operatorVm.NotifyBansChanged();
+                lineupVm.RefreshAvailability();
+                OperatorView.SetBanSummary([.. banVm.BannedCovenants], banVm.BannedNames.Count);
             });
         };
+        OperatorView.SetBanSummary([.. banVm.BannedCovenants], banVm.BannedNames.Count);
 
         trackingVm.TrackedOperators.CollectionChanged += (_, _) =>
         {
@@ -215,6 +258,7 @@ public partial class SidePanelWindow : Window
         var hwnd = new WindowInteropHelper(this).Handle;
         _hwndSource = HwndSource.FromHwnd(hwnd);
         _hwndSource.AddHook(WndProc);
+        SystemBorder.Hide(hwnd);
         User32.RegisterHotKey(hwnd, HotkeyIdManualScan,
             User32.MOD_CONTROL | User32.MOD_SHIFT, User32.VK_OEM_2);
     }
@@ -236,6 +280,11 @@ public partial class SidePanelWindow : Window
             };
             _ = SavePreferenceAsync(() => _settingsManager.SaveSidePanelPositionAsync(_positionSettings), FreeSidePanelMovementToggle);
         }
+        if (msg == User32.WM_HOTKEY && wParam.ToInt32() == _assistantHotkeyId)
+        {
+            ToggleAssistantVisibilityRequested?.Invoke();
+            handled = true;
+        }
         if (msg == User32.WM_HOTKEY && wParam.ToInt32() == HotkeyIdManualScan)
         {
             ManualScanRequested?.Invoke();
@@ -247,7 +296,23 @@ public partial class SidePanelWindow : Window
     public void UpdateManualScanStatus(int pending)
         => OperatorView.UpdateManualScanStatus(pending);
 
-    public void UpdateGameConnectionStatus(string status) => GameConnectionStatus.Text = status;
+    /// <summary>Settings card: source in the title, live status below, icon tinted by state (PC grey, ADB green / red).</summary>
+    public void UpdateGameConnectionStatus(bool isAdb, string status)
+    {
+        var failed = isAdb && (status.Contains("重试") || status.Contains("失败") || status.Contains("横屏"));
+        var connected = isAdb && status.StartsWith("ADB 已连接");
+        GameConnectionTitle.Text = isAdb ? "截图来源 · MuMu / ADB" : "截图来源 · PC 客户端";
+        GameConnectionStatus.Text = status;
+        GameConnectionStatus.ToolTip = status;
+        GameConnectionGlyph.Text = !isAdb ? "PC" : failed ? "!" : connected ? "✓" : "…";
+        var (fill, text) = !isAdb ? ("SectionBackgroundBrush", "TextSecondaryBrush")
+            : failed ? ("DangerTintBrush", "DangerBrush")
+            : connected ? ("SuccessTintBrush", "SuccessTextBrush") : ("AccentTintBrush", "AccentBrush");
+        GameConnectionIcon.SetResourceReference(Border.BackgroundProperty, fill);
+        GameConnectionGlyph.SetResourceReference(TextBlock.ForegroundProperty, text);
+        GameConnectionStatus.SetResourceReference(TextBlock.ForegroundProperty, failed ? "DangerBrush" : connected ? "SuccessTextBrush" : "TextSecondaryBrush");
+        GameConnectionButton.Content = failed ? "重新设置…" : "更改…";
+    }
 
     private void OnGameConnection(object sender, RoutedEventArgs e) => GameConnectionRequested?.Invoke();
 
@@ -269,7 +334,7 @@ public partial class SidePanelWindow : Window
         await CheckForUpdatesAsync(isManual: true);
     }
 
-    private async Task CheckForUpdatesAsync(bool isManual)
+    internal async Task CheckForUpdatesAsync(bool isManual)
     {
         if (_isCheckingForUpdates || (!isManual && _hasCheckedForUpdates)) return;
         _hasCheckedForUpdates = true;
@@ -312,18 +377,7 @@ public partial class SidePanelWindow : Window
                 return;
             }
 
-            _pendingUpdate = info;
-            _isDownloadReady = false;
-            UpdateBannerText.Text = $"发现新版本 {info.TagName}";
-            UpdateStatusText.Text = $"正在下载新版本 {info.TagName}…";
-            UpdateActionIcon.Text = "↑ ";
-            UpdateActionText.Text = "查看更新";
-            UpdateBannerProgress.Value = 0;
-            UpdateBannerProgress.Visibility = Visibility.Visible;
-            UpdateBannerPercent.Text = "0%";
-            UpdateBannerPercent.Visibility = Visibility.Visible;
-            UpdateBanner.Visibility = Visibility.Visible;
-            _downloadTask = RunBackgroundDownloadAsync(info);
+            PresentAvailableUpdate(info);
         }
         finally
         {
@@ -331,6 +385,32 @@ public partial class SidePanelWindow : Window
             CheckUpdateButton.IsEnabled = true;
             CheckUpdateButton.Content = "检查更新";
         }
+    }
+
+    internal void PresentAvailableUpdate(UpdateInfo info)
+    {
+        _pendingUpdate = info;
+        _downloadTask = null;
+        _isDownloadReady = false;
+        _downloadError = null;
+        _lastUpdateProgress = 0;
+        UpdateBannerText.Text = $"发现新版本 {info.TagName}";
+        UpdateStatusText.Text = $"发现新版本 {info.TagName}，可查看说明并选择下载";
+        UpdateActionIcon.Text = "↑ ";
+        UpdateActionText.Text = "查看更新";
+        UpdateBannerProgress.Visibility = Visibility.Collapsed;
+        UpdateBannerPercent.Visibility = Visibility.Collapsed;
+        UpdateBanner.Visibility = Visibility.Visible;
+    }
+
+    private void StartUpdateDownload()
+    {
+        if (_downloadTask is { IsCompleted: false } || _isDownloadReady) return;
+        UpdateBannerText.Text = $"正在下载 {_pendingUpdate!.TagName}";
+        UpdateStatusText.Text = $"正在下载新版本 {_pendingUpdate.TagName}…";
+        UpdateActionText.Text = "查看进度";
+        UpdateBannerProgress.Visibility = Visibility.Visible;
+        _downloadTask = RunBackgroundDownloadAsync(_pendingUpdate);
     }
 
     private async Task RunBackgroundDownloadAsync(UpdateInfo info)
@@ -378,7 +458,7 @@ public partial class SidePanelWindow : Window
             {
                 UpdateBannerProgress.Visibility = Visibility.Collapsed;
                 UpdateBannerPercent.Visibility = Visibility.Collapsed;
-                UpdateBannerText.Text = $"下载失败（{reason}），点击重试";
+                UpdateBannerText.Text = "下载失败，查看详情";
                 UpdateActionIcon.Text = "↺ ";
                 UpdateActionText.Text = "重试";
                 UpdateStatusText.Text = $"下载失败：{reason}，可在更新横幅中重试";
@@ -416,26 +496,10 @@ public partial class SidePanelWindow : Window
 
         if (_pendingUpdate is null) return;
 
-        // Download failures are handled inside RunBackgroundDownloadAsync, so its
-        // task completes normally even when the banner needs a retry.
-        if (_downloadTask is { IsCompleted: true })
-        {
-            UpdateBannerText.Text = $"发现新版本 {_pendingUpdate.TagName}";
-            UpdateStatusText.Text = $"正在下载新版本 {_pendingUpdate.TagName}…";
-            UpdateActionIcon.Text = "↑ ";
-            UpdateActionText.Text = "查看更新";
-            UpdateBannerProgress.Value = 0;
-            UpdateBannerProgress.Visibility = Visibility.Visible;
-            _downloadTask = RunBackgroundDownloadAsync(_pendingUpdate);
-            return;
-        }
-
-        // Download in progress — open notes dialog
-        var dialog = new UpdateDialog(_pendingUpdate)
-        {
-            Owner = this
-        };
-        dialog.ReportProgress(_lastUpdateProgress);
+        var dialog = new UpdateDialog(_pendingUpdate) { Owner = this };
+        dialog.DownloadRequested += StartUpdateDownload;
+        if (_downloadError is not null) dialog.ReportFailure(_downloadError);
+        else if (_downloadTask is not null) dialog.ReportProgress(_lastUpdateProgress);
         _openUpdateDialog = dialog;
         try
         {
@@ -484,7 +548,7 @@ public partial class SidePanelWindow : Window
     public void UpdatePosition(RECT gameRect, bool isFullscreen)
     {
         _lastGameRect = gameRect;
-        if (WindowState != WindowState.Normal || _isUserMovingOrSizing) return;
+        if (IsAssistantHidden || WindowState != WindowState.Normal || _isUserMovingOrSizing) return;
         _isProgrammaticChange = true;
         try
         {
@@ -498,12 +562,14 @@ public partial class SidePanelWindow : Window
 
             var hwnd = new WindowInteropHelper(this).EnsureHandle();
             var current = User32.ReadWindowRect(hwnd);
-            if (_positionSettings.FreeMovement)
+            if (_positionSettings.FreeMovement && _positionSettings.Placement is not null)
             {
                 var work = User32.GetMonitorGeometry(current.Left + current.Width / 2, current.Top + current.Height / 2).WorkArea;
                 User32.SetWindowBounds(hwnd, WindowGeometry.ClampBounds(current, work));
                 return;
             }
+            // Free movement without a saved place yet (first start): dock beside the game once, then remember it.
+            var firstFreePlacement = _positionSettings.FreeMovement;
             var offset = _positionSettings.FollowOffsetDip;
             var scale = User32.GetWindowDpiScale(hwnd);
             var monitor = offset is null
@@ -532,10 +598,24 @@ public partial class SidePanelWindow : Window
                 ? WindowGeometry.SidePanelBounds(gameRect, monitor.WorkArea, scale, _preferredWidthDip, _userHeightDip, isFullscreen)
                 : WindowGeometry.FollowBounds(gameRect, monitor.WorkArea, scale, _preferredWidthDip, _userHeightDip, isFullscreen, offset);
             User32.SetWindowBounds(hwnd, target);
+            if (firstFreePlacement)
+            {
+                _positionSettings = _positionSettings with { Placement = CaptureSidePanelPlacement() };
+                _ = SavePositionQuietlyAsync();
+            }
         }
         finally
         {
             _isProgrammaticChange = false;
+        }
+    }
+
+    private async Task SavePositionQuietlyAsync()
+    {
+        try { await _settingsManager.SaveSidePanelPositionAsync(_positionSettings); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            AppLogger.Warn("Settings", $"Could not save side panel position: {ex.Message}");
         }
     }
 
@@ -591,7 +671,94 @@ public partial class SidePanelWindow : Window
 
     private void OnToggleSettings(object sender, RoutedEventArgs e)
     {
-        SettingsPanel.Visibility = SettingsPanel.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+        var open = SettingsPanel.Visibility != Visibility.Visible || SettingsPanel.Tag as string == "closing";
+        HighlightSettingsButton(open);
+        if (open)
+        {
+            SettingsPanel.Tag = null;
+            SettingsPanel.Visibility = Visibility.Visible;
+            PageTransition.SlideIn(SettingsPanel, fromX: 18);
+        }
+        else
+        {
+            SettingsPanel.Tag = "closing";
+            PageTransition.SlideOut(SettingsPanel, toX: 18, () =>
+            {
+                if (SettingsPanel.Tag as string != "closing") return;
+                SettingsPanel.Visibility = Visibility.Collapsed;
+                SettingsPanel.Tag = null;
+            });
+        }
+    }
+
+    /// <summary>Switching tabs fades the new page in with a short upward slide.</summary>
+    private void OnMainTabChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!ReferenceEquals(e.OriginalSource, MainTabs) || !IsLoaded) return;
+        if (MainTabs.SelectedItem is TabItem { Content: FrameworkElement page }) PageTransition.SlideIn(page, fromY: 8);
+    }
+
+    /// <summary>The gear stays highlighted while the settings page is open.</summary>
+    private void HighlightSettingsButton(bool open)
+    {
+        if (open)
+        {
+            SettingsButton.SetResourceReference(BackgroundProperty, "TitleChipBrush");
+            SettingsButton.SetResourceReference(ForegroundProperty, "TitleDecorBrush");
+        }
+        else
+        {
+            SettingsButton.ClearValue(BackgroundProperty);
+            SettingsButton.ClearValue(ForegroundProperty);
+        }
+    }
+
+    private void UpdateStatusChip()
+    {
+        var level = TrackingVm.TerminalLevel;
+        // "4?" = level saved by the last session, not yet seen on the shop's upgrade card.
+        StatusTerminalText.Text = level <= 0 ? "–"
+            : TrackingVm.IsTerminalLevelRestored && TrackingVm.ManualTerminalLevel is null ? $"{level}?" : level.ToString();
+        StatusTerminalText.ToolTip = TrackingVm.TerminalLevelText;
+    }
+
+    // ── Appearance: 3 mode themes × day / night ────────────────────────────
+
+    private SidebarAppearance _appearance;
+    private bool _syncingAppearance;
+
+    private GameShopTheme CurrentUiTheme => _appearance.ThemeFor(GameTheme);
+
+    private void SyncDayNightSelector()
+    {
+        _syncingAppearance = true;
+        DayNightSelector.SelectedIndex = _appearance.IsNight(CurrentUiTheme) ? 1 : 0;
+        _syncingAppearance = false;
+    }
+
+    private void ApplyAppearance()
+    {
+        ThemeManager.Apply(CurrentUiTheme, _appearance.IsNight(CurrentUiTheme));
+        SyncDayNightSelector();
+    }
+
+    private Task SaveAppearanceAsync(UIElement control)
+        => SavePreferenceAsync(() => _settingsManager.SaveSidebarAppearanceAsync(_appearance), control);
+
+    private async void OnDayNightChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_syncingAppearance || DayNightSelector.SelectedIndex < 0) return;
+        _appearance.Night[CurrentUiTheme] = DayNightSelector.SelectedIndex == 1;
+        ApplyAppearance();
+        await SaveAppearanceAsync(DayNightSelector);
+    }
+
+    private async void OnFollowModeThemeChanged(object sender, RoutedEventArgs e)
+    {
+        _appearance.FollowModeTheme = FollowModeThemeToggle.IsChecked == true;
+        UiThemeSelector.Visibility = _appearance.FollowModeTheme ? Visibility.Collapsed : Visibility.Visible;
+        ApplyAppearance();
+        await SaveAppearanceAsync(FollowModeThemeToggle);
     }
 
     private SidePanelPlacement CaptureSidePanelPlacement()
@@ -636,8 +803,10 @@ public partial class SidePanelWindow : Window
     private async void OnUiThemeChanged(object sender, SelectionChangedEventArgs e)
     {
         if (UiThemeSelector.SelectedIndex < 0) return;
-        ThemeManager.Apply(UiThemeSelector.SelectedIndex == 1);
-        await SavePreferenceAsync(() => _settingsManager.SaveLightThemeAsync(ThemeManager.IsLight), UiThemeSelector);
+        _appearance.Theme = (GameShopTheme)UiThemeSelector.SelectedIndex;
+        if (_appearance.FollowModeTheme) return;
+        ApplyAppearance();
+        await SaveAppearanceAsync(UiThemeSelector);
     }
 
     private async void OnGameThemeChanged(object sender, SelectionChangedEventArgs e)
@@ -645,7 +814,50 @@ public partial class SidePanelWindow : Window
         if (GameThemeSelector.SelectedIndex < 0) return;
         GameTheme = (GameShopTheme)GameThemeSelector.SelectedIndex;
         GameThemeChanged?.Invoke(GameTheme);
-        await SavePreferenceAsync(() => _settingsManager.SaveGameShopThemeAsync(GameTheme), GameThemeSelector);
+        if (_appearance.FollowModeTheme) ApplyAppearance();
+        await SavePreferenceAsync(() => _settingsManager.SaveGameShopThemeAsync(GameTheme), GameThemePanel);
+    }
+
+    public void InitAutomaticGameTheme(bool automatic)
+    {
+        AutomaticThemeToggle.IsChecked = automatic;
+        AutomaticThemeToggle.Checked += OnAutomaticGameThemeChanged;
+        AutomaticThemeToggle.Unchecked += OnAutomaticGameThemeChanged;
+    }
+
+    private async void OnAutomaticGameThemeChanged(object sender, RoutedEventArgs e)
+    {
+        AutomaticGameThemeChanged?.Invoke(AutomaticGameTheme);
+        await SavePreferenceAsync(() => _settingsManager.SaveAutomaticGameThemeAsync(AutomaticGameTheme), AutomaticThemeToggle);
+    }
+
+    public void ApplyDetectedGameTheme(GameShopTheme theme)
+    {
+        if (!AutomaticGameTheme) return;
+        GameThemeSelector.SelectedIndex = (int)theme;
+    }
+
+    /// <summary>Raised when the user turns the in-game board overlay on or off.</summary>
+    public event Action<bool>? BoardOverlayToggled;
+
+    public void InitBoardOverlay(bool enabled)
+    {
+        BoardOverlayToggle.IsChecked = enabled;
+        BoardOverlayToggle.Checked += OnBoardOverlayChanged;
+        BoardOverlayToggle.Unchecked += OnBoardOverlayChanged;
+    }
+
+    /// <summary>Shows what the board recognizer currently sees under the overlay toggle.</summary>
+    public void SetBoardStatus(string? mapName, bool shopOpen) =>
+        BoardStatusText.Text = mapName is null
+            ? "站位页开启“游戏内显示”时，同时标出地面 / 特殊地面 / 高台和敌人路线"
+            : $"当前地图：{mapName} · 商店{(shopOpen ? "展开" : "收起")}";
+
+    private async void OnBoardOverlayChanged(object sender, RoutedEventArgs e)
+    {
+        bool enabled = BoardOverlayToggle.IsChecked == true;
+        BoardOverlayToggled?.Invoke(enabled);
+        await SavePreferenceAsync(() => _settingsManager.SaveShowBoardOverlayAsync(enabled), BoardOverlayToggle);
     }
 
     private async void OnMultipleLineupsChanged(object sender, RoutedEventArgs e)
@@ -674,10 +886,8 @@ public partial class SidePanelWindow : Window
 
     private void OnClose(object sender, RoutedEventArgs e)
     {
-        var confirm = MessageBox.Show(this,
-            "确定要关闭 ASP Assistant · Arknights 吗？\n关闭后识别、悬浮提示与快捷键都会停止。",
-            "退出确认", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
-        if (confirm != MessageBoxResult.Yes) return;
+        if (!ConfirmDialog.Ask(this, "退出确认", "确定要关闭鸿雪·卫戍助手吗？\n关闭后识别、悬浮提示与快捷键都会停止。", "关闭"))
+            return;
 
         User32.UnregisterHotKey(new WindowInteropHelper(this).Handle, HotkeyIdManualScan);
         Application.Current.Shutdown();
@@ -687,17 +897,22 @@ public partial class SidePanelWindow : Window
 
     private void WireLineupView()
     {
-        LineupView.NewLineupRequested += () => OpenEditor(null);
-        LineupView.EditLineupRequested += lineup => OpenEditor(lineup);
+        LineupView.MoveLineupRequested += async (lineup, direction) =>
+        {
+            LineupView.IsEnabled = false;
+            try { await LineupVm.MoveAsync(lineup, direction); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                ShowToast($"阵容排序保存失败：{ex.Message}");
+            }
+            finally { LineupView.IsEnabled = true; }
+        };
+        LineupView.NewLineupRequested += async () => await OpenEditorAsync(null, null);
+        LineupView.EditLineupRequested += async lineup => await OpenEditorAsync(lineup, null);
         LineupView.DeleteLineupRequested += async lineup =>
         {
-            var ok = MessageBox.Show(
-                this,
-                $"确定删除阵容“{lineup.Name}”？此操作不可撤销。",
-                "删除阵容",
-                MessageBoxButton.OKCancel,
-                MessageBoxImage.Warning);
-            if (ok != MessageBoxResult.OK) return;
+            if (!ConfirmDialog.Ask(this, "删除阵容", $"确定删除阵容“{lineup.Name}”？此操作不可撤销。", "删除", danger: true))
+                return;
             try
             {
                 await LineupVm.DeleteAsync(lineup);
@@ -736,18 +951,27 @@ public partial class SidePanelWindow : Window
 
             var dlg = new InputDialog(
                 "导入阵容",
-                "粘贴 dpaste.com 短链接 或 阵容 JSON：",
+                "粘贴森空岛攻略链接、dpaste.com 短链接或阵容 JSON：",
                 clipboard.Trim())
             {
                 Owner = this,
+                ShowGuideLink = true,
             };
             if (dlg.ShowDialog() != true) return;
             var input = dlg.InputText.Trim();
             if (string.IsNullOrEmpty(input)) return;
 
+            LineupView.IsEnabled = false;
             try
             {
                 ShowToast("正在导入…");
+                if (SklandGuideImporter.IsOfficialGuideUrl(input))
+                {
+                    var imported = await _lineupShareService.ImportOfficialGuideAsync(input, _allOperators, _allStrategies);
+                    HideToast();
+                    await OpenEditorAsync(imported.Lineup, imported.Notice);
+                    return;
+                }
                 var lineup = await _lineupShareService.ImportAsync(input);
                 // Avoid id collision with existing lineups by re-id-ing on import.
                 lineup.Id = Guid.NewGuid().ToString("N");
@@ -763,6 +987,7 @@ public partial class SidePanelWindow : Window
                 AppLogger.Warn("Lineup", $"Import failed: {ex.Message}");
                 ShowToast($"导入失败：{ex.Message}");
             }
+            finally { LineupView.IsEnabled = true; }
         };
 
         LineupView.TrackLineupRequested += lineup =>
@@ -784,12 +1009,18 @@ public partial class SidePanelWindow : Window
     {
         PlannerVm = new LineupPlannerViewModel(_lineupPlanner, _allOperators, BanVm, LineupVm.Calculator.EquipmentRules)
         {
+            CurrentTerminalLevel = TrackingVm.TerminalLevel,
             TrackedOperatorsProvider = () => TrackingVm.TrackedOperators.Select(e => e.Name).ToList(),
             RunOnUiThread = action =>
             {
                 if (Dispatcher.CheckAccess()) action();
                 else Dispatcher.BeginInvoke(action);
             }
+        };
+        TrackingVm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(TrackingViewModel.TerminalLevel))
+                PlannerVm.CurrentTerminalLevel = TrackingVm.TerminalLevel;
         };
         PlannerVm.SaveRequested += async lineup =>
         {
@@ -816,6 +1047,18 @@ public partial class SidePanelWindow : Window
                 ShowToast($"追踪失败：{ex.Message}");
             }
         };
+        PlannerVm.TrackRouteRequested += route =>
+        {
+            try
+            {
+                var added = TrackingVm.TrackRoute(route, LineupVm.Calculator.EquipmentRules);
+                ShowToast($"已追踪道中路线：新增 {added.Final} 名大成干员 / {added.Transition} 名过渡干员");
+            }
+            catch (Exception ex)
+            {
+                ShowToast($"追踪失败：{ex.Message}");
+            }
+        };
         PlannerVm.SetAvailableCovenants(OperatorBrowseVm.HighlightedCovenants);
         OperatorBrowseVm.PropertyChanged += (_, e) =>
         {
@@ -825,22 +1068,34 @@ public partial class SidePanelWindow : Window
         PlannerView.DataContext = PlannerVm;
     }
 
-    private async void OpenEditor(Lineup? source)
+    internal async Task OpenEditorAsync(Lineup? source, string? importNotice)
     {
         var calc = LineupVm.Calculator;
         var editorVm = new LineupEditorViewModel(source, _allOperators, _allEquipment, calc);
         var window = new LineupEditorWindow(editorVm, _allStrategies) { Owner = this };
+        if (importNotice is not null) window.ShowImportNotice(importNotice);
         await MinimizableDialog.ShowAsync(window, PanelContent);
         if (window.Result is null) return;
 
-        _ = LineupVm.AddOrUpdateAsync(window.Result).ContinueWith(_ =>
+        await SaveEditedLineupAsync(window.Result, source is not null);
+    }
+
+    internal async Task SaveEditedLineupAsync(Lineup lineup, bool edited)
+    {
+        try { await LineupVm.AddOrUpdateAsync(lineup); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            Dispatcher.Invoke(() =>
-            {
-                LineupView.RefreshAllBadges();
-                ShowToast(source is null ? "已创建阵容" : "已保存阵容");
-            });
-        });
+            ShowToast($"阵容保存失败：{ex.Message}");
+            return;
+        }
+        LineupView.RefreshAllBadges();
+        ShowToast(edited ? "已保存阵容" : "已创建阵容");
+        if (!edited || !TrackingVm.IsLineupTracked(lineup.Id)) return;
+        var dialog = new ConfirmDialog("更新追踪阵容", $"阵容“{lineup.Name}”已保存。是否将修改应用到追踪栏？其他阵容、手动追踪和获取状态会保留。",
+            "应用到追踪栏", cancelText: "仅保存") { Owner = this };
+        if (dialog.ShowDialog() != true) return;
+        TrackingVm.ApplyTrackedLineup(lineup);
+        ShowToast("已将阵容修改应用到追踪栏");
     }
 
     // ── Transient toast ────────────────────────────────────────────────────

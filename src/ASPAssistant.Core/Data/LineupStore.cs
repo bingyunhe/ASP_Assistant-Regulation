@@ -12,6 +12,7 @@ public class LineupStore
 {
     private readonly string _dir;
     private readonly LineupEquipmentService _equipmentRules;
+    private readonly SemaphoreSlim _orderLock = new(1, 1);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -54,7 +55,43 @@ public class LineupStore
             }
             result.Add(lineup);
         }
-        return [.. result.OrderByDescending(l => l.UpdatedAt)];
+        List<string> order;
+        try
+        {
+            order = JsonSerializer.Deserialize<List<string>>(
+                await File.ReadAllTextAsync(Path.Combine(_dir, "order", "lineups.json")))
+                ?? throw new JsonException("阵容顺序不能为空");
+        }
+        catch (IOException ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        {
+            // Existing profiles have no manual order until the first move or new lineup.
+            return [.. result.OrderByDescending(l => l.UpdatedAt)];
+        }
+        var ranks = order.Select((id, index) => (id, index)).ToDictionary(pair => pair.id, pair => pair.index);
+        return [.. result.OrderBy(l => ranks.TryGetValue(l.Id, out var index) ? index : int.MaxValue)
+            .ThenByDescending(l => l.UpdatedAt)];
+    }
+
+    public async Task SaveOrderAsync(IEnumerable<string> ids)
+    {
+        var json = JsonSerializer.Serialize(ids, JsonOptions);
+        await _orderLock.WaitAsync();
+        var directory = Path.GetFullPath(Path.Combine(_dir, "order"));
+        var path = Path.Combine(directory, "lineups.json");
+        var temporary = path + $".{Guid.NewGuid():N}.tmp";
+        try
+        {
+            Directory.CreateDirectory(directory);
+            try
+            {
+                await File.WriteAllTextAsync(temporary, json);
+                try { File.Copy(path, path + ".bak", true); }
+                catch (FileNotFoundException) { /* First saved order has no previous version. */ }
+                File.Move(temporary, path, true);
+            }
+            finally { File.Delete(temporary); }
+        }
+        finally { _orderLock.Release(); }
     }
 
     public async Task SaveAsync(Lineup lineup)

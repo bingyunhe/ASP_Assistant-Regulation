@@ -8,8 +8,8 @@
     <UseWPF>true</UseWPF>
     <!-- Version is overridden by CI via -p:Version=x.y.z during release builds -->
     <Version>1.7.1</Version>
-    <AssemblyTitle>ASP Assistant · Arknights</AssemblyTitle>
-    <Product>ASP Assistant · Arknights</Product>
+    <AssemblyTitle>Hongxue Stronghold Companion</AssemblyTitle>
+    <Product>Hongxue Stronghold Companion</Product>
     <!-- Custom entry point with OS version guard (Program.cs); overrides WPF auto-generated Main -->
     <StartupObject>ASPAssistant.App.Program</StartupObject>
     <ApplicationIcon>..\..\data\icons\aspa_logo.ico</ApplicationIcon>
@@ -20,7 +20,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ASPAssistant.Core\ASPAssistant.Core.csproj" />
+    <InternalsVisibleTo Include="ASPAssistant.Tests" />
     <Resource Include="..\..\data\icons\aspa_logo.png" Link="Resources\aspa_logo.png" />
+    <!-- Number fonts of the redesign themes (SIL Open Font License, see Resources/Fonts/OFL-*.txt) -->
+    <Resource Include="Resources\Fonts\*.ttf" />
+    <!-- Map thumbnails for the placement page's map picker (cropped in-game screenshots) -->
+    <Resource Include="Resources\MapThumbs\*.jpg" />
+    <Content Include="Resources\Fonts\OFL-*.txt" Link="licenses\fonts\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

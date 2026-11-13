@@ -1,4 +1,4 @@
-using System.Collections.Specialized;
+using System.ComponentModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -16,6 +16,26 @@ public partial class LineupListView : UserControl
     public event Action<Lineup>? ShareLineupRequested;
     public event Action<Lineup>? TrackLineupRequested;
     public event Action<Lineup>? DeleteLineupRequested;
+    public event Action<Lineup, int>? MoveLineupRequested;
+
+    public static readonly DependencyProperty TrackedLineupIdsProperty = DependencyProperty.Register(
+        nameof(TrackedLineupIds), typeof(IReadOnlySet<string>), typeof(LineupListView), new PropertyMetadata(new HashSet<string>()));
+    public IReadOnlySet<string> TrackedLineupIds => (IReadOnlySet<string>)GetValue(TrackedLineupIdsProperty);
+    private TrackingViewModel? _tracking;
+
+    public void SetTracking(TrackingViewModel tracking)
+    {
+        if (_tracking is not null) _tracking.PropertyChanged -= OnTrackingChanged;
+        _tracking = tracking;
+        _tracking.PropertyChanged += OnTrackingChanged;
+        SetValue(TrackedLineupIdsProperty, tracking.TrackedLineupIds);
+    }
+
+    private void OnTrackingChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TrackingViewModel.TrackedLineupIds))
+            SetValue(TrackedLineupIdsProperty, _tracking!.TrackedLineupIds);
+    }
 
     private LineupViewModel? _vm;
 
@@ -28,43 +48,68 @@ public partial class LineupListView : UserControl
     private void OnViewDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         if (_vm is not null)
-            _vm.Lineups.CollectionChanged -= OnLineupsChanged;
+            _vm.PropertyChanged -= OnLineupsChanged;
 
         _vm = e.NewValue as LineupViewModel;
         if (_vm is not null)
-            _vm.Lineups.CollectionChanged += OnLineupsChanged;
+            _vm.PropertyChanged += OnLineupsChanged;
 
         UpdateEmptyHint();
     }
 
-    private void OnLineupsChanged(object? sender, NotifyCollectionChangedEventArgs e)
-        => UpdateEmptyHint();
+    private void OnLineupsChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(LineupViewModel.VisibleLineups)) UpdateEmptyHint();
+    }
 
     private void UpdateEmptyHint()
     {
-        EmptyHint.Visibility = (_vm?.Lineups.Count ?? 0) == 0
+        EmptyHint.Visibility = (_vm?.VisibleLineups.Count ?? 0) == 0
             ? Visibility.Visible
             : Visibility.Collapsed;
+        var empty = (_vm?.Lineups.Count ?? 0) == 0;
+        EmptyHint.Title = empty ? "还没有阵容" : "没有符合条件的阵容";
+        EmptyHint.Hint = empty ? "点右上角“新建”自己搭，或“导入”别人分享的阵容码。规划页的方案也能直接保存过来。"
+            : "切换“全部”查看所有阵容；可用性只检查后期阵容。";
     }
 
     public void RefreshAllBadges()
     {
-        // Force-rebuild templates: cheapest reliable way to refresh all the inline badges/icons
-        // when a single lineup mutates (e.g. after editor returns).
-        var src = LineupItems.ItemsSource;
-        LineupItems.ItemsSource = null;
-        LineupItems.ItemsSource = src;
-        UpdateEmptyHint();
+        _vm?.RefreshAvailability();
     }
+
+    private void OnMoveButtonLoaded(object sender, RoutedEventArgs e)
+    {
+        var button = (Button)sender;
+        button.IsEnabled = _vm!.CanMove((Lineup)button.DataContext, int.Parse((string)button.CommandParameter));
+    }
+
+    private void OnMoveLineup(object sender, RoutedEventArgs e)
+    {
+        var button = (Button)sender;
+        MoveLineupRequested?.Invoke((Lineup)button.DataContext, int.Parse((string)button.CommandParameter));
+    }
+
+    private void OnClearHighlights(object sender, RoutedEventArgs e) => _tracking!.ClearLineupHighlights();
 
     private void OnNewLineup(object sender, RoutedEventArgs e) => NewLineupRequested?.Invoke();
     private void OnImportLineup(object sender, RoutedEventArgs e) => ImportLineupRequested?.Invoke();
 
     private Lineup? FindLineup(object sender)
     {
+        if (sender is FrameworkElement { DataContext: Lineup lineup }) return lineup;
         if (sender is FrameworkElement fe && fe.Tag is string id && _vm is not null)
             return _vm.Lineups.FirstOrDefault(l => l.Id == id);
         return null;
+    }
+
+    /// <summary>Activated covenants of a card, core first, shown as people ("乌萨斯 6").</summary>
+    private void OnCovenantPillsLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not ItemsControl list || list.DataContext is not Lineup lineup || _vm is null) return;
+        list.ItemsSource = _vm.ComputeStats(lineup).Where(c => c.Activated)
+            .OrderByDescending(c => c.BondType == "SEASON").ThenByDescending(c => c.Count)
+            .Select(c => new LineupCovenantPill(c.Name, c.Count, c.BondType == "SEASON")).ToList();
     }
 
     private void OnEditLineup(object sender, RoutedEventArgs e)
@@ -130,3 +175,5 @@ public partial class LineupListView : UserControl
         }
     }
 }
+
+public sealed record LineupCovenantPill(string Name, int Count, bool IsCore);

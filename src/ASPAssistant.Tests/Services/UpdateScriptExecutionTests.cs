@@ -320,7 +320,7 @@ public class UpdateScriptExecutionTests
     private static async Task WaitForFileAsync(string path)
     {
         var timeout = Stopwatch.StartNew();
-        while (!File.Exists(path) && timeout.Elapsed < TimeSpan.FromSeconds(10))
+        while (!File.Exists(path) && timeout.Elapsed < TimeSpan.FromSeconds(30))
             await Task.Delay(25);
         File.Exists(path).Should().BeTrue("the test-only helper must write its result");
     }

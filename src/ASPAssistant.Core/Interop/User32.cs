@@ -1,4 +1,4 @@
-﻿// Modified for ASP Assistant Regulation on 2026-11-11; see NOTICE.
+// Modified for ASP Assistant Regulation on 2026-11-11; see NOTICE.
 using System.Runtime.InteropServices;
 using System.ComponentModel;
 using System.Text;
@@ -150,6 +150,10 @@ public static class User32
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool GetCursorPos(out POINT lpPoint);
 
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetCursorPos(int x, int y);
+
     public const uint WM_MOUSEWHEEL = 0x020A;
 
     public static IntPtr FindArknightsWindow()
@@ -197,7 +201,7 @@ public static class User32
 
     // Global hotkey APIs
 
-    [DllImport("user32.dll")]
+    [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
 

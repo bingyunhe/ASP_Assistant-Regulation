@@ -153,7 +153,7 @@ public class EquipmentAndMechTests
             await File.WriteAllTextAsync(path, before);
             var settings = new SettingsManager(directory);
             var loaded = await settings.LoadTrackingEntriesAsync(EquipmentTestData.Rules);
-            (await File.ReadAllTextAsync(Directory.GetFiles(directory, "*.bak").Single())).Should().Be(before);
+            (await File.ReadAllTextAsync(Directory.GetFiles(directory, "*.pre-equipment-*.bak").Single())).Should().Be(before);
             var tracking = new TrackingViewModel();
             tracking.LoadEntries(loaded);
             tracking.ClearPlannedTransformation("甲", "炎国短刀", EquipmentTestData.Rules);
@@ -162,7 +162,9 @@ public class EquipmentAndMechTests
             tracking.TrackedEquipment.Select(e => e.Name).Should().Equal("手动装备");
             await settings.SaveTrackingEntriesAsync(tracking.AllEntries.ToList());
             (await settings.LoadTrackingEntriesAsync(EquipmentTestData.Rules)).Select(e => e.Name).Should().BeEquivalentTo("甲", "手动装备");
-            Directory.GetFiles(directory, "*.bak").Should().ContainSingle();
+            Directory.GetFiles(directory, "*.pre-equipment-*.bak").Should().ContainSingle();
+            Directory.GetFiles(directory, "*.pre-sources-*.bak").Should().ContainSingle();
+            File.Exists(path + ".bak").Should().BeTrue();
         }
         finally { DeleteTemporary(directory); }
     }

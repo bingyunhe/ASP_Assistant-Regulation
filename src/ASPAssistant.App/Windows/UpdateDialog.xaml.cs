@@ -1,12 +1,15 @@
 using System.Reflection;
 using System.Windows;
 using System.Windows.Input;
+using System.Text.RegularExpressions;
 using ASPAssistant.Core.Services;
 
 namespace ASPAssistant.App.Windows;
 
 public partial class UpdateDialog : Window
 {
+    public event Action? DownloadRequested;
+
     public UpdateDialog(UpdateInfo updateInfo)
     {
         InitializeComponent();
@@ -19,14 +22,20 @@ public partial class UpdateDialog : Window
             : currentVersion.ToString(3);
 
         LatestVersionText.Text = updateInfo.Version;
-        ReleaseNotesText.Text = string.IsNullOrWhiteSpace(updateInfo.ReleaseNotes)
+        // 公告保留标题和更新内容；下载使用说明留在发布页。
+        var notes = updateInfo.ReleaseNotes;
+        var nextSection = Regex.Match(notes, @"(?m)^##[ \t]+(?!更新内容[ \t]*\r?$)\S");
+        if (nextSection.Success)
+            notes = notes[..nextSection.Index];
+        ReleaseNotesText.Text = string.IsNullOrWhiteSpace(notes)
             ? "（暂无更新说明）"
-            : updateInfo.ReleaseNotes;
+            : notes.Trim();
     }
 
     /// <summary>把下载进度（0～1）与阶段文案同步到对话框。</summary>
     public void ReportProgress(double fraction)
     {
+        DownloadButton.Visibility = Visibility.Collapsed;
         DialogProgress.Visibility = Visibility.Visible;
         ProgressPercentText.Visibility = Visibility.Visible;
         var percent = (int)Math.Round(Math.Clamp(fraction, 0, 1) * 100);
@@ -43,9 +52,17 @@ public partial class UpdateDialog : Window
 
     public void ReportFailure(string reason)
     {
-        DownloadHintText.Text = $"下载失败：{reason}。请关闭此窗口，在主界面点击“重试”。";
+        DownloadHintText.Text = $"下载失败：{reason}。可点击“重试下载”。";
+        DownloadButton.Content = "重试下载";
+        DownloadButton.Visibility = Visibility.Visible;
         DialogProgress.Visibility = Visibility.Collapsed;
         ProgressPercentText.Visibility = Visibility.Collapsed;
+    }
+
+    private void OnDownload(object sender, RoutedEventArgs e)
+    {
+        ReportProgress(0);
+        DownloadRequested?.Invoke();
     }
 
     private void OnTitleBarDrag(object sender, MouseButtonEventArgs e)

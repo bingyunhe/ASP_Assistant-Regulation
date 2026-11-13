@@ -50,16 +50,16 @@ public sealed class ShopReader(IOcrEngine engine, IReadOnlyList<string> catalogN
             graphics.DrawImage(workingImage, new Rectangle(0, 0, strip.Width, strip.Height),
                 0, canvasTop, width, height - canvasTop, GraphicsUnit.Pixel);
         }
-        using var encoded = new MemoryStream();
-        strip.Save(encoded, ImageFormat.Png);
-        var texts = (await engine.RecognizeRegionAsync(encoded.ToArray(), 0, 0, strip.Width, strip.Height)).ToList();
+        // 24-bit BMP: no PNG encode/decode on every scan tick (see ImageBytes)
+        var encoded = ImageBytes.Encode(strip);
+        var texts = (await engine.RecognizeRegionAsync(encoded, 0, 0, strip.Width, strip.Height)).ToList();
         var control = texts.FirstOrDefault(t => t.Text.Contains("收起", StringComparison.Ordinal)
             && t.Box.X + t.Box.W > width * 1.6);
         if (control is null)
         {
             // Side padding on ultrawide captures can put the control left of 80%.
             int controlLeft = Math.Max((int)(strip.Width * .65), strip.Width - height);
-            var controls = await engine.RecognizeRegionAsync(encoded.ToArray(), controlLeft, 0,
+            var controls = await engine.RecognizeRegionAsync(encoded, controlLeft, 0,
                 strip.Width - controlLeft, strip.Height);
             control = controls.FirstOrDefault(t => t.Text.Contains("收起", StringComparison.Ordinal));
         }
@@ -152,17 +152,18 @@ public sealed class ShopReader(IOcrEngine engine, IReadOnlyList<string> catalogN
                 }
             }
         }
-        encoded.SetLength(0);
-        strip.Save(encoded, ImageFormat.Png);
-        var recovered = await engine.RecognizeRegionAsync(encoded.ToArray(), 0, 0, strip.Width, strip.Height);
+        encoded = ImageBytes.Encode(strip);
+        var recovered = await engine.RecognizeRegionAsync(encoded, 0, 0, strip.Width, strip.Height);
         var mapped = recovered.Select(t => t.Box.Y + t.Box.H / 2.0 < nameTop
             ? t with { Box = (t.Box.X, t.Box.Y + nameTop
                 - (t.Box.Y + t.Box.H / 2.0 < 170 ? 60 : 200), t.Box.W, t.Box.H) } : t).ToList();
         foreach (var item in MatchNames(mapped, width, height, canvasTop, _names))
         {
+            // The two OCR passes can leave a few pixels between boxes for the same label.
             if (items.Any(i => i.Name == item.Name
                 && Math.Max(i.OcrRegion.X, item.OcrRegion.X)
-                    < Math.Min(i.OcrRegion.X + i.OcrRegion.Width, item.OcrRegion.X + item.OcrRegion.Width)))
+                    < Math.Min(i.OcrRegion.X + i.OcrRegion.Width, item.OcrRegion.X + item.OcrRegion.Width)
+                        + height * .005 / width))
                 continue;
             items.Add(item);
         }
@@ -178,7 +179,7 @@ public sealed class ShopReader(IOcrEngine engine, IReadOnlyList<string> catalogN
                 {
                     int lineLeft = (int)Math.Round((left + pitch * .14) * 2);
                     int lineWidth = (int)Math.Round(pitch * fraction * 2);
-                    var lines = await engine.RecognizeLineAsync(encoded.ToArray(), lineLeft,
+                    var lines = await engine.RecognizeLineAsync(encoded, lineLeft,
                         nameTop, lineWidth, nameHeight);
                     var matches = MatchNames(lines.Select(t => new OcrTextResult(
                         t.Text.Replace("斯卡菜", "斯卡蒂").Replace("复泰", "复奏"),
