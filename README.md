@@ -1,5 +1,5 @@
 ﻿<div align="center">
-  <img src="data/icons/aspa_logo.png" width="96" height="96" alt="鸿雪画框图标"/>
+  <img src="docs/images/hongxue-logo-large.png" width="280" alt="鸿雪画框图标"/>
   <h1>鸿雪·卫戍助手</h1>
   <p>Hongxue Stronghold Companion</p>
   <p>明日方舟·卫戍协议 辅助工具<br/>基于 Moonfair/ASP_Assistant 修改，由 MaaFramework 提供图像识别能力。</p>
@@ -176,7 +176,7 @@ ADB 模式使用 MaaFramework 读取游戏截图，游戏被其他窗口遮挡�
 
 1. 在最新 Release 的 Assets 中下载以 `-win-x64.zip` 结尾的 Windows 包，不要选择 `Source code` 源码压缩包。
 2. 右键“全部解压”到独立目录，保留全部文件和 `data`、`runtimes` 文件夹。
-3. 双击 `ASPAssistant.App.exe` 启动。无需另外安装 .NET；包内带有识别模型和所需运行库。
+3. 进入解压后的应用目录，双击 `ASPAssistant.App.exe` 启动；若 ZIP 内有同名顶层文件夹，请先打开该文件夹。无需另外安装 .NET；包内带有识别模型和所需运行库。
 4. 更新时先退出旧程序，再解压新版。个人追踪与阵容设置存放于本机用户数据目录。
 
 发布页同时提供 `SHA256SUMS.txt`，可用 PowerShell 的 `Get-FileHash` 命令计算所下载 ZIP 的 SHA256 并核对；`PACKAGE-MANIFEST.txt` 记录 CI 解包检查后的版本、资源数量及 ZIP 哈希。详细说明见 [最新发布说明](https://github.com/bingyunhe/hongxue-stronghold-companion/releases/latest)。
@@ -189,11 +189,13 @@ ADB 模式使用 MaaFramework 读取游戏截图，游戏被其他窗口遮挡�
 git clone https://github.com/bingyunhe/hongxue-stronghold-companion.git
 cd hongxue-stronghold-companion
 dotnet restore ASPAssistant.sln
-dotnet test src/ASPAssistant.Tests/ASPAssistant.Tests.csproj -c Release
+dotnet test src/ASPAssistant.Tests/ASPAssistant.Tests.csproj -c Release --filter "Category!=LocalScreenshot"
 dotnet run --project src/ASPAssistant.App
 ```
 
 仓库已包含当前 JSON 数据、图标和 OCR 模型，首次运行不需要重新抓取数据。
+
+开发与提交流程见 [贡献指南](CONTRIBUTING.md)。公开测试排除依赖本地私有截图的 `LocalScreenshot` 用例。
 
 ```powershell
 # 生成需要 .NET Desktop Runtime 的本地版本
