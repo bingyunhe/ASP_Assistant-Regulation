@@ -13,15 +13,17 @@ namespace ASPAssistant.Tests.Services;
 public class UpdateDownloadTests
 {
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    public async Task LocalFeed_ChecksDownloadsVerifiesAndPreparesWithoutLaunching(bool wrapped, bool wrongHash)
+    [InlineData("", false)]
+    [InlineData("win-x64", false)]
+    [InlineData("hongxue-stronghold-companion-v99.0.0-win-x64", false)]
+    [InlineData("", true)]
+    [InlineData("hongxue-stronghold-companion-v99.0.0-win-x64", true)]
+    public async Task LocalFeed_ChecksDownloadsVerifiesAndPreparesWithoutLaunching(string folder, bool wrongHash)
     {
         using var zipStream = new MemoryStream();
         using (var zip = new ZipArchive(zipStream, ZipArchiveMode.Create, leaveOpen: true))
         {
-            var prefix = wrapped ? "win-x64/" : "";
+            var prefix = folder.Length > 0 ? folder + "/" : "";
             foreach (var name in new[] { "ASPAssistant.App.exe", "data/test.json", "runtimes/test.txt" })
             {
                 await using var writer = zip.CreateEntry(prefix + name).Open();
@@ -87,7 +89,8 @@ public class UpdateDownloadTests
                 Directory.Exists(service.PendingStagingDir).Should().BeFalse("preparation must not replace the running installation");
                 var script = await File.ReadAllTextAsync(service.PendingScriptPath!);
                 script.Should().Contain("$startupTimeout = 60").And.Contain("ASPA_UPDATE_STARTUP_RESULT");
-                var source = wrapped ? Path.Combine(job, "extracted", "win-x64") : Path.Combine(job, "extracted");
+                var source = Path.Combine(job, "extracted", folder);
+                script.Should().Contain("$sourceDir = '" + source.Replace("'", "''") + "'");
                 File.Exists(Path.Combine(source, "ASPAssistant.App.exe")).Should().BeTrue();
                 File.ReadAllBytes(service.PendingScriptPath!).Take(3).Should().Equal(new byte[] { 0xef, 0xbb, 0xbf });
             }

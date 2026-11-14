@@ -13,6 +13,8 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      PACKAGE_NAME: hongxue-stronghold-companion-${{ github.ref_name }}-win-x64
     steps:
       - uses: actions/checkout@v4
       - name: Setup .NET
@@ -44,11 +46,11 @@ jobs:
             -c Release -r win-x64 --self-contained true `
             -p:Version=${{ env.VERSION }} `
             -p:DebugType=None -p:DebugSymbols=false `
-            -o publish/win-x64
+            -o "publish/$env:PACKAGE_NAME"
       - name: Trim symbols and unused runtimes
         shell: pwsh
         run: |
-          $out = (Resolve-Path "publish/win-x64").Path
+          $out = (Resolve-Path "publish/$env:PACKAGE_NAME").Path
           Get-ChildItem -LiteralPath $out -Filter *.pdb -File | Remove-Item
           $runtimeRoot = Join-Path $out "runtimes"
           Get-ChildItem -LiteralPath $runtimeRoot -Directory |
@@ -64,19 +66,18 @@ jobs:
         shell: pwsh
         run: |
           foreach ($dll in @("vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll")) {
-            Copy-Item -LiteralPath (Join-Path "C:\Windows\System32" $dll) -Destination "publish/win-x64"
+            Copy-Item -LiteralPath (Join-Path "C:\Windows\System32" $dll) -Destination "publish/$env:PACKAGE_NAME"
           }
       - name: Zip release assets
         shell: pwsh
         run: |
           foreach ($file in @("LICENSE", "LICENSE.upstream", "NOTICE")) {
-            if (-not (Test-Path -LiteralPath (Join-Path "publish/win-x64" $file))) {
+            if (-not (Test-Path -LiteralPath (Join-Path "publish/$env:PACKAGE_NAME" $file))) {
               throw "Missing distribution notice: $file"
             }
           }
-          Compress-Archive -Path publish/win-x64/* `
-            -DestinationPath "publish/hongxue-stronghold-companion-${{ github.ref_name }}-win-x64.zip"
-          $zip = "publish/hongxue-stronghold-companion-${{ github.ref_name }}-win-x64.zip"
+          $zip = "publish/$env:PACKAGE_NAME.zip"
+          Compress-Archive -LiteralPath "publish/$env:PACKAGE_NAME" -DestinationPath $zip
           $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $([IO.Path]::GetFileName($zip))" | Set-Content -LiteralPath "publish/SHA256SUMS.txt" -Encoding ascii
       - name: Verify package
@@ -103,18 +104,25 @@ jobs:
           try {
             Expand-Archive -LiteralPath $zip -DestinationPath $verify
 
+            $topLevel = @(Get-ChildItem -LiteralPath $verify -Force)
+            $folder = [IO.Path]::GetFileNameWithoutExtension($zipInfo.Name)
+            if ($topLevel.Count -ne 1 -or -not $topLevel[0].PSIsContainer -or $topLevel[0].Name -cne $folder) {
+              throw 'ZIP 必须只包含一个与压缩包同名的顶层文件夹'
+            }
+            $packageRoot = $topLevel[0].FullName
+
             foreach ($file in @('LICENSE', 'LICENSE.upstream', 'NOTICE')) {
-              if (-not (Test-Path -LiteralPath (Join-Path $verify $file) -PathType Leaf)) {
-                throw "ZIP 根目录缺少许可文件 $file"
+              if (-not (Test-Path -LiteralPath (Join-Path $packageRoot $file) -PathType Leaf)) {
+                throw "包内应用目录缺少许可文件 $file"
               }
             }
             if (@(Get-ChildItem -LiteralPath $verify -Recurse -File -Filter 'MODIFICATIONS.md').Count -gt 0) {
               throw '包内不应包含仅在本机维护的 MODIFICATIONS.md'
             }
 
-            $exe = Join-Path $verify 'ASPAssistant.App.exe'
+            $exe = Join-Path $packageRoot 'ASPAssistant.App.exe'
             if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) {
-              throw 'ZIP 根目录缺少 ASPAssistant.App.exe'
+              throw '包内应用目录缺少 ASPAssistant.App.exe'
             }
             $vi = (Get-Item -LiteralPath $exe).VersionInfo
             # Accept .0 and +commit suffixes without matching 1.3.10 against 1.3.1.
@@ -126,8 +134,8 @@ jobs:
               throw "ProductVersion=$($vi.ProductVersion) 与 tag $expected 不一致"
             }
 
-            $bosses = Get-Content -LiteralPath (Join-Path $verify 'data/bosses.json') -Raw | ConvertFrom-Json
-            $types = Get-Content -LiteralPath (Join-Path $verify 'data/enemy_types.json') -Raw | ConvertFrom-Json
+            $bosses = Get-Content -LiteralPath (Join-Path $packageRoot 'data/bosses.json') -Raw | ConvertFrom-Json
+            $types = Get-Content -LiteralPath (Join-Path $packageRoot 'data/enemy_types.json') -Raw | ConvertFrom-Json
             if ($bosses.bosses -isnot [array] -or $bosses.bosses.Count -lt 1) {
               throw 'data/bosses.json 的 bosses 必须是非空数组'
             }
@@ -147,12 +155,12 @@ jobs:
             }
             if ($variantCount -lt 1) { throw 'data/enemy_types.json 里没有任何敌人变体' }
 
-            $iconsDir = Join-Path $verify 'data/icons'
+            $iconsDir = Join-Path $packageRoot 'data/icons'
             $iconCount = @(Get-ChildItem -LiteralPath $iconsDir -Recurse -File -Filter '*.png').Count
             if ($iconCount -lt 1) { throw 'data/icons 下没有任何 PNG' }
             foreach ($dll in @('msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll')) {
-              if (-not (Test-Path -LiteralPath (Join-Path $verify $dll) -PathType Leaf)) {
-                throw "ZIP 根目录缺少 $dll"
+              if (-not (Test-Path -LiteralPath (Join-Path $packageRoot $dll) -PathType Leaf)) {
+                throw "包内应用目录缺少 $dll"
               }
             }
 
@@ -163,6 +171,7 @@ jobs:
               "zip            : $($zipInfo.Name) ($([math]::Round($zipInfo.Length / 1MB, 2)) MiB)"
               "SHA256         : $hash"
               "entries        : $fileCount"
+              "folder         : $folder"
               "FileVersion    : $($vi.FileVersion)"
               "ProductVersion : $($vi.ProductVersion)"
               "bosses         : $bossCount"

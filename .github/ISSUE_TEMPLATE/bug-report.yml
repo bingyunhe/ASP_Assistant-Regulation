@@ -1,0 +1,110 @@
+name: 问题反馈
+description: 反馈识别、界面、攻略导入或其他使用问题。
+title: "[问题] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请先搜索是否已有相同问题，并填写下面的信息，方便复现。
+        PC 和模拟器的专用字段按实际环境填写，不适用可留空；不清楚的项目可以写“不清楚”。
+        Issue 内容公开可见，上传截图或日志前请隐去账号、个人路径及其他隐私信息，不要上传完整个人配置。
+  - type: input
+    id: app-version
+    attributes:
+      label: 助手版本
+      description: 请填写实际使用的版本；开发版请注明构建日期或提交编号（如知道）。
+      placeholder: 正式版版本号，或开发版及构建日期
+    validations:
+      required: true
+  - type: dropdown
+    id: game-client
+    attributes:
+      label: 游戏运行环境
+      options:
+        - PC 客户端
+        - 安卓模拟器
+        - 其他 / 与游戏环境无关
+    validations:
+      required: true
+  - type: dropdown
+    id: connection-mode
+    attributes:
+      label: 助手连接方式
+      description: 按助手连接设置填写。
+      options:
+        - PC 窗口截图
+        - ADB
+        - 不清楚
+        - 不适用
+    validations:
+      required: true
+  - type: input
+    id: windows-version
+    attributes:
+      label: Windows 版本
+      placeholder: 例如 Windows 11 24H2，或 Windows 10
+  - type: input
+    id: screen-resolution
+    attributes:
+      label: 屏幕分辨率
+      description: 填写游戏所在显示器的分辨率；模拟器请同时注明模拟器画面分辨率（如知道）。
+      placeholder: 例如显示器 3840×2160，模拟器 1280×720
+  - type: input
+    id: windows-scale
+    attributes:
+      label: Windows 显示缩放
+      description: 系统“设置 → 显示”中的缩放比例，不是游戏内缩放。
+      placeholder: 例如 100%、125% 或 150%
+  - type: input
+    id: pc-game-scale
+    attributes:
+      label: PC 游戏内缩放比例（PC 用户填写）
+      description: 使用 PC 客户端时请填写游戏设置中的缩放比例；模拟器用户可留空。
+      placeholder: 例如 90% 或 100%
+  - type: input
+    id: emulator-name
+    attributes:
+      label: 模拟器名称（模拟器用户填写）
+      description: 使用模拟器时请填写名称，知道版本号也请一并填写；PC 用户可留空。
+      placeholder: 例如 MuMu、雷电及其版本号
+  - type: input
+    id: android-version
+    attributes:
+      label: 安卓版本（模拟器用户填写）
+      description: 填写模拟器实例的 Android 系统版本，不是模拟器软件版本；PC 用户可留空。
+      placeholder: 例如 Android 9 或 Android 12
+  - type: textarea
+    id: reproduce-steps
+    attributes:
+      label: 复现步骤
+      description: 请按顺序说明操作；识别问题请注明单人 / 多人、开局选 Ban 页 / 局内信息页，以及自动识别还是手动重新录入。
+      placeholder: |
+        1. 打开……
+        2. 点击 / 进入……
+        3. 出现……（每次发生，还是偶尔发生？）
+    validations:
+      required: true
+  - type: textarea
+    id: expected-result
+    attributes:
+      label: 预期结果
+      placeholder: 你期望助手如何表现？
+    validations:
+      required: true
+  - type: textarea
+    id: actual-result
+    attributes:
+      label: 实际结果
+      placeholder: 实际发生了什么？如有错误提示，请贴出原文。
+    validations:
+      required: true
+  - type: textarea
+    id: attachments
+    attributes:
+      label: 截图 / 日志（可选）
+      description: 可在此粘贴截图、拖入日志文件或填写相关日志片段；请先隐去个人信息。没有附件也可以提交。
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: 补充信息（可选）
+      placeholder: 例如上一版是否正常、已尝试的处理方法、相关 Issue 链接。
